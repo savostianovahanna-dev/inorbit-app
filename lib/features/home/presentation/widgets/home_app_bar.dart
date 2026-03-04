@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'avatar_badge.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 
-/// App bar row: "InOrbit" title on the left, overlapping avatars on the right.
+/// App bar row: "InOrbit" title on the left, "+" add button on the right.
 class HomeAppBar extends StatelessWidget {
-  const HomeAppBar({super.key});
+  const HomeAppBar({super.key, this.onAddFriend});
 
-  static const _badgeSize = 36.0;
-  static const _overlap = 10.0;
+  final VoidCallback? onAddFriend;
 
   @override
   Widget build(BuildContext context) {
@@ -16,32 +15,59 @@ class HomeAppBar extends StatelessWidget {
       children: [
         Text('InOrbit', style: AppTextStyles.titleBold24),
         const Spacer(),
-        // Overlapping avatar badges (HM behind, AK in front)
-        SizedBox(
-          width: _badgeSize * 2 - _overlap,
-          height: _badgeSize,
-          child: Stack(
-            children: [
-              Positioned(
-                left: 0,
-                child: const AvatarBadge(
-                  initials: 'HM',
-                  size: _badgeSize,
-                  strokeWidth: 2.0,
-                ),
-              ),
-              Positioned(
-                left: _badgeSize - _overlap,
-                child: const AvatarBadge(
-                  initials: 'AK',
-                  size: _badgeSize,
-                  strokeWidth: 2.0,
-                ),
-              ),
-            ],
-          ),
-        ),
+        _PlusButton(onTap: onAddFriend),
       ],
     );
   }
+}
+
+class _PlusButton extends StatelessWidget {
+  const _PlusButton({this.onTap});
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.cardBorder, width: 0.63),
+        ),
+        child: Center(
+          child: CustomPaint(
+            size: const Size(14, 14),
+            painter: _PlusIconPainter(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PlusIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.textPrimary
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    // Horizontal
+    canvas.drawLine(
+      Offset(0, size.height / 2),
+      Offset(size.width, size.height / 2),
+      paint,
+    );
+    // Vertical
+    canvas.drawLine(
+      Offset(size.width / 2, 0),
+      Offset(size.width / 2, size.height),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_PlusIconPainter old) => false;
 }

@@ -101,4 +101,12 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w500,
     color: AppColors.white,
   );
+
+  // Success screen
+  static final successTitle = GoogleFonts.dmSans(
+    fontSize: 32,
+    fontWeight: FontWeight.w500,
+    color: AppColors.textPrimary,
+    letterSpacing: -0.80, // -2.5% of 32px
+  );
 }

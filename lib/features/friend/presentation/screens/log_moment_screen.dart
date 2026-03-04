@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../widgets/friend_header.dart';
 
 /// "Log a moment" screen — Figma node 58-7441.
 ///
@@ -148,12 +147,13 @@ class _LogHeader extends StatelessWidget {
 class _ChevronPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.textPrimary
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
+    final paint =
+        Paint()
+          ..color = AppColors.textPrimary
+          ..strokeWidth = 1.5
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..style = PaintingStyle.stroke;
     final cx = size.width / 2;
     final cy = size.height / 2;
     canvas.drawPath(
@@ -226,25 +226,39 @@ enum _ActivityType { coffee, call, text, dinner, movie, shopping, other }
 extension _ActivityTypeX on _ActivityType {
   String get emoji {
     switch (this) {
-      case _ActivityType.coffee:   return '☕';
-      case _ActivityType.call:     return '📞';
-      case _ActivityType.text:     return '💬';
-      case _ActivityType.dinner:   return '🍽';
-      case _ActivityType.movie:    return '🎬';
-      case _ActivityType.shopping: return '🛍';
-      case _ActivityType.other:    return '✨';
+      case _ActivityType.coffee:
+        return '☕';
+      case _ActivityType.call:
+        return '📞';
+      case _ActivityType.text:
+        return '💬';
+      case _ActivityType.dinner:
+        return '🍽';
+      case _ActivityType.movie:
+        return '🎬';
+      case _ActivityType.shopping:
+        return '🛍';
+      case _ActivityType.other:
+        return '✨';
     }
   }
 
   String get label {
     switch (this) {
-      case _ActivityType.coffee:   return 'Coffee';
-      case _ActivityType.call:     return 'Call';
-      case _ActivityType.text:     return 'Text';
-      case _ActivityType.dinner:   return 'Dinner';
-      case _ActivityType.movie:    return 'Movie';
-      case _ActivityType.shopping: return 'Shopping';
-      case _ActivityType.other:    return 'Other';
+      case _ActivityType.coffee:
+        return 'Coffee';
+      case _ActivityType.call:
+        return 'Call';
+      case _ActivityType.text:
+        return 'Text';
+      case _ActivityType.dinner:
+        return 'Dinner';
+      case _ActivityType.movie:
+        return 'Movie';
+      case _ActivityType.shopping:
+        return 'Shopping';
+      case _ActivityType.other:
+        return 'Other';
     }
   }
 }
@@ -260,16 +274,19 @@ class _ActivityRow extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: _ActivityType.values
-            .map((t) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: _ActivityPill(
-                    type: t,
-                    isSelected: selected == t,
-                    onTap: () => onSelect(t),
+        children:
+            _ActivityType.values
+                .map(
+                  (t) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _ActivityPill(
+                      type: t,
+                      isSelected: selected == t,
+                      onTap: () => onSelect(t),
+                    ),
                   ),
-                ))
-            .toList(),
+                )
+                .toList(),
       ),
     );
   }
@@ -313,12 +330,13 @@ class _ActivityPill extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 type.label,
-                style: isSelected
-                    ? AppTextStyles.momentTitle.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      )
-                    : AppTextStyles.bodyRegular14.copyWith(fontSize: 14),
+                style:
+                    isSelected
+                        ? AppTextStyles.momentTitle.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        )
+                        : AppTextStyles.bodyRegular14.copyWith(fontSize: 14),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -389,9 +407,10 @@ class _WhenChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         height: 60,
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.orange.withValues(alpha: 0.08)
-              : AppColors.background,
+          color:
+              isSelected
+                  ? AppColors.orange.withValues(alpha: 0.08)
+                  : AppColors.background,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected ? AppColors.textSecondary : AppColors.divider,
@@ -400,16 +419,17 @@ class _WhenChip extends StatelessWidget {
         alignment: Alignment.center,
         child: Text(
           label,
-          style: isSelected
-              ? AppTextStyles.sectionHeading.copyWith(
-                  color: AppColors.textPrimary,
-                  height: 1,
-                )
-              : AppTextStyles.bodyRegular14.copyWith(
-                  fontSize: 16,
-                  color: AppColors.textSecondary,
-                  height: 1,
-                ),
+          style:
+              isSelected
+                  ? AppTextStyles.sectionHeading.copyWith(
+                    color: AppColors.textPrimary,
+                    height: 1,
+                  )
+                  : AppTextStyles.bodyRegular14.copyWith(
+                    fontSize: 16,
+                    color: AppColors.textSecondary,
+                    height: 1,
+                  ),
         ),
       ),
     );
@@ -467,11 +487,12 @@ class _CalendarIcon extends StatelessWidget {
 class _CalendarPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.cardBorder
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+    final paint =
+        Paint()
+          ..color = AppColors.cardBorder
+          ..strokeWidth = 1.0
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round;
 
     // Outer rectangle
     canvas.drawRRect(
@@ -616,10 +637,11 @@ class _LogButton extends StatelessWidget {
 class _PlusPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.white
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round;
+    final paint =
+        Paint()
+          ..color = AppColors.white
+          ..strokeWidth = 1.5
+          ..strokeCap = StrokeCap.round;
     final cx = size.width / 2;
     final cy = size.height / 2;
     const arm = 5.83;

@@ -7,6 +7,7 @@ import '../widgets/bottom_nav_bar.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../friend/presentation/screens/friend_screen.dart';
+import '../../../create_friend/presentation/screens/add_friend_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -33,8 +34,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Title row + overlapping avatars
-                    const HomeAppBar(),
+                    // Title row + add friend button
+                    HomeAppBar(
+                      onAddFriend: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AddFriendScreen(),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 8),
 
                     // Orbit network visualization

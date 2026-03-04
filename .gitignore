@@ -11,6 +11,18 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+.claude/
+.cursor/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.development
+.env.test
+.env.production
+dist/
+.DS_Store
 
 # IntelliJ related
 *.iml
