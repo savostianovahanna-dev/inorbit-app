@@ -102,6 +102,21 @@ abstract final class AppTextStyles {
     color: AppColors.white,
   );
 
+  // Settings screen
+  static final settingsRowTitle = GoogleFonts.dmSans(
+    fontSize: 15,
+    fontWeight: FontWeight.w500,
+    color: AppColors.textPrimary,
+    height: 1.7,
+  );
+
+  static final settingsRowSubtitle = GoogleFonts.dmSans(
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    color: AppColors.cardBorder,
+    height: 1.5,
+  );
+
   // Success screen
   static final successTitle = GoogleFonts.dmSans(
     fontSize: 32,
