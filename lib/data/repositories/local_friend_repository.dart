@@ -65,6 +65,15 @@ class LocalFriendRepository implements FriendRepository {
     }
   }
 
+  Future<void> addOrUpdateFriend(Friend friend) async {
+    try {
+      final companion = _mapper.toDrift(friend, userId: _uid);
+      await _dao.insertOrUpdateFriend(companion); // ← через DAO, не через db
+    } catch (e) {
+      throw DatabaseFailure(e.toString());
+    }
+  }
+
   // ── Error helper ─────────────────────────────────────────────────────────
 
   static void _rethrowAsDatabaseFailure(Object error, StackTrace _) =>

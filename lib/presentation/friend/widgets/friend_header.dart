@@ -5,9 +5,16 @@ import '../../../core/theme/app_text_styles.dart';
 /// Navigation header row: back chevron + name title + 3-dot menu.
 /// Matches Figma "Header" component (40px tall, space-between layout).
 class FriendHeader extends StatelessWidget {
-  const FriendHeader({super.key, required this.name});
+  const FriendHeader({
+    super.key,
+    required this.name,
+    this.onEdit,
+    this.onDelete,
+  });
 
   final String name;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -37,16 +44,54 @@ class FriendHeader extends StatelessWidget {
           ),
 
           // 3-dot menu button
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: CustomPaint(painter: _ThreeDotPainter()),
-          ),
+          _MenuButton(onEdit: onEdit, onDelete: onDelete),
         ],
       ),
     );
   }
 }
+
+class _MenuButton extends StatelessWidget {
+  const _MenuButton({this.onEdit, this.onDelete});
+
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<_MenuAction>(
+      onSelected: (action) {
+        if (action == _MenuAction.edit) onEdit?.call();
+        if (action == _MenuAction.delete) onDelete?.call();
+      },
+      offset: const Offset(0, 36),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: SizedBox(
+        width: 40,
+        height: 40,
+        child: CustomPaint(painter: _ThreeDotPainter()),
+      ),
+      itemBuilder:
+          (_) => [
+            PopupMenuItem(
+              value: _MenuAction.edit,
+              child: Text('Edit', style: AppTextStyles.bodyRegular14),
+            ),
+            PopupMenuItem(
+              value: _MenuAction.delete,
+              child: Text(
+                'Delete',
+                style: AppTextStyles.bodyRegular14.copyWith(
+                  color: Colors.red,
+                ),
+              ),
+            ),
+          ],
+    );
+  }
+}
+
+enum _MenuAction { edit, delete }
 
 class _ChevronPainter extends CustomPainter {
   @override

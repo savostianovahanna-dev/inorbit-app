@@ -32,4 +32,6 @@ class MomentsDao extends DatabaseAccessor<AppDatabase> with _$MomentsDaoMixin {
 
   Future<void> deleteMomentById(String id) =>
       (delete(momentsTable)..where((t) => t.id.equals(id))).go();
+  Future<void> insertOrUpdateMoment(MomentsTableCompanion c) =>
+      into(momentsTable).insertOnConflictUpdate(c);
 }

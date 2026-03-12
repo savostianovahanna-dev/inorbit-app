@@ -21,9 +21,9 @@ class FriendsDao extends DatabaseAccessor<AppDatabase> with _$FriendsDaoMixin {
       (select(friendsTable)..where((t) => t.userId.equals(userId))).watch();
 
   Stream<FriendsTableData?> watchFriendById(String id, String userId) =>
-      (select(friendsTable)
-            ..where((t) => t.id.equals(id) & t.userId.equals(userId)))
-          .watchSingleOrNull();
+      (select(friendsTable)..where(
+        (t) => t.id.equals(id) & t.userId.equals(userId),
+      )).watchSingleOrNull();
 
   Future<void> insertFriend(FriendsTableCompanion c) =>
       into(friendsTable).insert(c);
@@ -39,9 +39,12 @@ class FriendsDao extends DatabaseAccessor<AppDatabase> with _$FriendsDaoMixin {
             ..where((t) => t.userId.equals(userId))
             ..orderBy([
               (_) => OrderingTerm(
-                    expression: _overdueExpr,
-                    mode: OrderingMode.desc,
-                  ),
+                expression: _overdueExpr,
+                mode: OrderingMode.desc,
+              ),
             ]))
           .watch();
+
+  Future<void> insertOrUpdateFriend(FriendsTableCompanion c) =>
+      into(friendsTable).insertOnConflictUpdate(c);
 }

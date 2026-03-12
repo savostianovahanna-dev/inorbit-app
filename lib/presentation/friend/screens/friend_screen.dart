@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../domain/entities/friend.dart';
 import '../../../domain/entities/moment.dart';
+import '../../../domain/repositories/friend_repository.dart';
 import '../../../domain/repositories/moment_repository.dart';
 import '../widgets/friend_header.dart';
 import '../widgets/history_section.dart';
@@ -19,6 +20,55 @@ class FriendScreen extends StatelessWidget {
   const FriendScreen({super.key, required this.friend});
 
   final Friend friend;
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              'Remove ${friend.name.split(' ').first}?',
+              style: AppTextStyles.bodyMedium16.copyWith(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: Text(
+              'This will permanently delete them and all their moments.',
+              style: AppTextStyles.bodyRegular14,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(
+                  'Cancel',
+                  style: AppTextStyles.bodyRegular14.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(
+                  'Delete',
+                  style: AppTextStyles.bodyRegular14.copyWith(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      await getIt<FriendRepository>().deleteFriend(friend.id);
+      if (context.mounted) Navigator.pop(context);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +92,10 @@ class FriendScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      FriendHeader(name: friend.name),
+                      FriendHeader(
+                        name: friend.name,
+                        onDelete: () => _confirmDelete(context),
+                      ),
                       const SizedBox(height: 8),
                       ProfileHero(friend: friend),
                       const SizedBox(height: 20),
