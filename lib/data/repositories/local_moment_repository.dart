@@ -57,6 +57,15 @@ class LocalMomentRepository implements MomentRepository {
     }
   }
 
+  Future<void> addOrUpdateMoment(Moment moment) async {
+    try {
+      final companion = _mapper.toDrift(moment);
+      await _dao.insertOrUpdateMoment(companion);
+    } catch (e) {
+      throw DatabaseFailure(e.toString());
+    }
+  }
+
   // ── Error helper ─────────────────────────────────────────────────────────
 
   static void _rethrowAsDatabaseFailure(Object error, StackTrace _) =>

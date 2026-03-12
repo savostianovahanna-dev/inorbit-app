@@ -3,8 +3,12 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+
+import '../di/injection.dart';
+import '../../domain/usecases/sync_data.dart';
 
 class AuthService {
   final _auth = FirebaseAuth.instance;
@@ -20,7 +24,7 @@ class AuthService {
     if (_googleInitialized) return;
 
     try {
-      // Обов’язково! serverClientId — це Web Client ID з Google Console
+      // Обов'язково! serverClientId — це Web Client ID з Google Console
       // (той самий, що в Firebase → Authentication → Google → Web SDK configuration)
       // Приклад: 123456789012-abc123def456.apps.googleusercontent.com
       await _googleSignIn.initialize(
@@ -36,6 +40,14 @@ class AuthService {
       print('Помилка ініціалізації Google Sign-In: $e');
       rethrow;
     }
+  }
+
+  void _onLoginSuccess(User firebaseUser) {
+    final userId = firebaseUser.uid;
+    initRemoteRepositories(userId);
+    getIt<SyncData>().call().catchError((Object e) {
+      debugPrint('Initial sync failed: $e');
+    });
   }
 
   // ── Google ────────────────────────────────────────────────────────────────
@@ -58,7 +70,11 @@ class AuthService {
         idToken: googleAuth.idToken, // тепер працює
       );
 
-      return await _auth.signInWithCredential(credential);
+      final userCredential = await _auth.signInWithCredential(credential);
+      if (userCredential.user != null) {
+        _onLoginSuccess(userCredential.user!);
+      }
+      return userCredential;
     } on Exception catch (e, stack) {
       print('Google Sign-In error: $e\n$stack');
       return null;
@@ -83,7 +99,11 @@ class AuthService {
       'apple.com',
     ).credential(idToken: appleCredential.identityToken, rawNonce: rawNonce);
 
-    return _auth.signInWithCredential(oauthCredential);
+    final userCredential = await _auth.signInWithCredential(oauthCredential);
+    if (userCredential.user != null) {
+      _onLoginSuccess(userCredential.user!);
+    }
+    return userCredential;
   }
 
   // ── Sign out ──────────────────────────────────────────────────────────────

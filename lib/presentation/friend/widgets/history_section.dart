@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../domain/entities/moment.dart';
+import '../../../domain/repositories/moment_repository.dart';
 import 'moment_card.dart';
 
 /// "History" section — a heading followed by a white card containing
@@ -36,6 +38,54 @@ class HistorySection extends StatelessWidget {
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
+
+  Future<void> _confirmDelete(BuildContext context, Moment moment) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              'Delete this moment?',
+              style: AppTextStyles.bodyMedium16.copyWith(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: Text(
+              'This will permanently remove the moment from history.',
+              style: AppTextStyles.bodyRegular14,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(
+                  'Cancel',
+                  style: AppTextStyles.bodyRegular14.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(
+                  'Delete',
+                  style: AppTextStyles.bodyRegular14.copyWith(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmed == true) {
+      await getIt<MomentRepository>().deleteMoment(moment.id);
+    }
+  }
 
   MomentData _convert(Moment m) => MomentData(
     emoji: _typeEmoji[m.type] ?? '✨',
@@ -78,7 +128,10 @@ class HistorySection extends StatelessWidget {
                     for (var i = 0; i < moments.length; i++) ...[
                       Padding(
                         padding: const EdgeInsets.all(20),
-                        child: MomentCard(moment: _convert(moments[i])),
+                        child: MomentCard(
+                          moment: _convert(moments[i]),
+                          onDelete: () => _confirmDelete(context, moments[i]),
+                        ),
                       ),
                       if (i < moments.length - 1) const _DashedMomentDivider(),
                     ],

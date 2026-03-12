@@ -97,6 +97,8 @@ class _LoadedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (friends.isEmpty) return _EmptyOrbitView();
+
     final overdueCount = friends.where((f) => f.isOverdue).length;
 
     // Friends are ordered by overdue score — first entry is the most overdue.
@@ -169,6 +171,109 @@ class _LoadedView extends StatelessWidget {
     if (overdue == 0) return people;
     final attn = overdue == 1 ? '1 needs attention' : '$overdue need attention';
     return '$people · $attn';
+  }
+}
+
+// ─── Empty orbit view ─────────────────────────────────────────────────────────
+
+class _EmptyOrbitView extends StatelessWidget {
+  const _EmptyOrbitView();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ───────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: HomeAppBar(
+              onAddFriend:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+                  ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // ── Orbit visualization (edge-to-edge) ───────────────────────────
+          OrbitWidget(friends: const [], userInitials: 'You'),
+          const SizedBox(height: 16),
+
+          // ── Empty state card ─────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Your orbit is empty',
+                    style: AppTextStyles.bodyMedium16.copyWith(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Add the people you want\nto stay close to',
+                    style: AppTextStyles.bodyRegular14.copyWith(
+                      color: const Color(0xFFAEAEB2),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AddFriendScreen(),
+                            ),
+                          ),
+                      style: TextButton.styleFrom(
+                        backgroundColor: AppColors.textPrimary,
+                        foregroundColor: AppColors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        'Add your first person',
+                        style: AppTextStyles.bodyMedium16.copyWith(
+                          color: AppColors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

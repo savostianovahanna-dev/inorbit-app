@@ -3,14 +3,23 @@ import 'package:get_it/get_it.dart';
 import '../../data/local/app_database.dart';
 import '../../data/local/daos/friends_dao.dart';
 import '../../data/local/daos/moments_dao.dart';
+import '../../data/models/friend_firestore_mapper.dart';
 import '../../data/models/friend_mapper.dart';
+import '../../data/models/moment_firestore_mapper.dart';
 import '../../data/models/moment_mapper.dart';
+import '../../data/remote/firebase_friend_repository.dart';
+import '../../data/remote/firebase_moment_repository.dart';
 import '../../data/repositories/local_friend_repository.dart';
 import '../../data/repositories/local_moment_repository.dart';
+import '../../data/repositories/synced_friend_repository.dart';
+import '../../data/repositories/synced_moment_repository.dart';
 import '../../domain/repositories/friend_repository.dart';
 import '../../domain/repositories/moment_repository.dart';
+import '../../domain/usecases/get_stats.dart';
+import '../../domain/usecases/sync_data.dart';
 import '../../domain/usecases/watch_friends.dart';
 import '../../bloc/home/home_bloc.dart';
+import '../../bloc/stats/stats_bloc.dart';
 import '../services/auth_service.dart';
 
 final getIt = GetIt.instance;
@@ -30,22 +39,83 @@ void setupDependencies() {
   getIt.registerSingleton<FriendMapper>(const FriendMapper());
   getIt.registerSingleton<MomentMapper>(const MomentMapper());
 
-  // Repositories — registered against abstractions so the rest of the app
-  // never depends on the concrete data-layer types
-  getIt.registerSingleton<FriendRepository>(
+  // Firestore mappers — stateless, safe to share
+  getIt.registerLazySingleton<FriendFirestoreMapper>(
+    () => FriendFirestoreMapper(),
+  );
+  getIt.registerLazySingleton<MomentFirestoreMapper>(
+    () => MomentFirestoreMapper(),
+  );
+
+  // Local repositories — concrete types registered for use by synced repos
+  getIt.registerSingleton<LocalFriendRepository>(
     LocalFriendRepository(getIt<FriendsDao>(), getIt<FriendMapper>()),
   );
-  getIt.registerSingleton<MomentRepository>(
+  getIt.registerSingleton<LocalMomentRepository>(
     LocalMomentRepository(getIt<MomentsDao>(), getIt<MomentMapper>()),
   );
+
+  // Repositories — start with local-only; upgraded to synced after login
+  getIt.registerSingleton<FriendRepository>(getIt<LocalFriendRepository>());
+  getIt.registerSingleton<MomentRepository>(getIt<LocalMomentRepository>());
 
   // Use cases
   getIt.registerSingleton<WatchFriends>(
     WatchFriends(getIt<FriendRepository>()),
   );
+  getIt.registerSingleton<GetStats>(
+    GetStats(getIt<FriendRepository>(), getIt<MomentRepository>()),
+  );
 
   // BLoCs — factory so each screen gets a fresh instance with its own state
   getIt.registerFactory<HomeBloc>(
     () => HomeBloc(getIt<WatchFriends>()),
+  );
+  getIt.registerFactory<StatsBloc>(
+    () => StatsBloc(getIt<GetStats>()),
+  );
+}
+
+/// Called once after successful login to wire up Firestore + synced repos.
+/// Safe to call multiple times — returns early if already initialised.
+void initRemoteRepositories(String userId) {
+  if (getIt.isRegistered<FirebaseFriendRepository>()) return;
+
+  getIt.registerSingleton<FirebaseFriendRepository>(
+    FirebaseFriendRepository(userId, getIt<FriendFirestoreMapper>()),
+  );
+  getIt.registerSingleton<FirebaseMomentRepository>(
+    FirebaseMomentRepository(userId, getIt<MomentFirestoreMapper>()),
+  );
+  getIt.registerSingleton<SyncedFriendRepository>(
+    SyncedFriendRepository(
+      getIt<LocalFriendRepository>(),
+      getIt<FirebaseFriendRepository>(),
+    ),
+  );
+  getIt.registerSingleton<SyncedMomentRepository>(
+    SyncedMomentRepository(
+      getIt<LocalMomentRepository>(),
+      getIt<FirebaseMomentRepository>(),
+    ),
+  );
+
+  // Re-register abstract repositories to use synced versions
+  if (getIt.isRegistered<FriendRepository>()) {
+    getIt.unregister<FriendRepository>();
+  }
+  getIt.registerSingleton<FriendRepository>(getIt<SyncedFriendRepository>());
+
+  if (getIt.isRegistered<MomentRepository>()) {
+    getIt.unregister<MomentRepository>();
+  }
+  getIt.registerSingleton<MomentRepository>(getIt<SyncedMomentRepository>());
+
+  // SyncData use case — depends on both synced repos
+  getIt.registerSingleton<SyncData>(
+    SyncData(
+      getIt<SyncedFriendRepository>(),
+      getIt<SyncedMomentRepository>(),
+    ),
   );
 }
