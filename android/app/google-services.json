@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "769287403463",
+    "project_id": "inorbit-68c1b",
+    "storage_bucket": "inorbit-68c1b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:769287403463:android:d79bc9b3ba34928a4e0be2",
+        "android_client_info": {
+          "package_name": "com.example.inorbit"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBxniQfO9dVq_-uifH9Lru3d63eeIL-vqs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

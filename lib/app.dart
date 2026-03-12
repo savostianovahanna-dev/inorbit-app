@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'core/theme/app_colors.dart';
-import 'features/auth/presentation/screens/login_screen.dart';
+import 'presentation/auth/screens/login_screen.dart';
 
 class InOrbitApp extends StatelessWidget {
   const InOrbitApp({super.key});
