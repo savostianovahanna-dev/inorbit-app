@@ -3,20 +3,20 @@ import 'package:drift/drift.dart';
 import '../../domain/entities/friend.dart';
 import '../local/app_database.dart';
 
-class FriendMapper {
-  const FriendMapper();
+class FriendSerializer {
+  const FriendSerializer();
 
   Friend fromDrift(FriendsTableData data) => Friend(
-        id: data.id,
-        name: data.name,
-        avatarPath: data.avatarPath,
-        planetIndex: data.planetIndex,
-        birthday: data.birthday,
-        orbitTier: data.orbitTier,
-        frequencyDays: data.frequencyDays,
-        lastConnectedAt: data.lastConnectedAt,
-        createdAt: data.createdAt,
-      );
+    id: data.id,
+    name: data.name,
+    avatarPath: data.avatarPath,
+    planetIndex: data.planetIndex,
+    birthday: data.birthday,
+    orbitTier: data.orbitTier,
+    frequencyDays: data.frequencyDays,
+    lastConnectedAt: data.lastConnectedAt,
+    createdAt: data.createdAt,
+  );
 
   FriendsTableCompanion toDrift(Friend entity, {String? userId}) =>
       FriendsTableCompanion(

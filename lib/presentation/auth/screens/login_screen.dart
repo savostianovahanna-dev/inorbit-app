@@ -36,9 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _handleAuth(
-    Future<UserCredential?> Function() authFn,
-  ) async {
+  Future<void> _handleAuth(Future<UserCredential?> Function() authFn) async {
     if (_loading) return;
     setState(() => _loading = true);
     try {
@@ -47,8 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final isNew = cred.additionalUserInfo?.isNewUser ?? false;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) =>
-              isNew ? const OnboardingScreen() : const HomeScreen(),
+          builder: (_) => isNew ? const OnboardingScreen() : const HomeScreen(),
         ),
       );
     } catch (e) {
@@ -152,21 +149,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     children: [
                       _AuthButton(
-                        iconPath: SharedIcons.apple,
-                        label: 'Continue with Apple',
-                        loading: _loading,
-                        onTap: () => _handleAuth(
-                          () => getIt<AuthService>().signInWithApple(),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      _AuthButton(
                         iconPath: SharedIcons.google,
                         label: 'Continue with Google',
                         loading: _loading,
-                        onTap: () => _handleAuth(
-                          () => getIt<AuthService>().signInWithGoogle(),
-                        ),
+                        onTap:
+                            () => _handleAuth(
+                              () => getIt<AuthService>().signInWithGoogle(),
+                            ),
                       ),
                       const SizedBox(height: 26),
 

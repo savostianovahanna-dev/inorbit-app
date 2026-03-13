@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../domain/entities/friend.dart';
 
-class FriendFirestoreMapper {
+class FriendFirestoreSerializer {
   Friend fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return Friend(
@@ -10,14 +10,16 @@ class FriendFirestoreMapper {
       name: data['name'] as String,
       avatarPath: data['avatarPath'] as String?,
       planetIndex: data['planetIndex'] as int?,
-      birthday: data['birthday'] == null
-          ? null
-          : (data['birthday'] as Timestamp).toDate(),
+      birthday:
+          data['birthday'] == null
+              ? null
+              : (data['birthday'] as Timestamp).toDate(),
       orbitTier: data['orbitTier'] as String,
       frequencyDays: data['frequencyDays'] as int,
-      lastConnectedAt: data['lastConnectedAt'] == null
-          ? null
-          : (data['lastConnectedAt'] as Timestamp).toDate(),
+      lastConnectedAt:
+          data['lastConnectedAt'] == null
+              ? null
+              : (data['lastConnectedAt'] as Timestamp).toDate(),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
   }

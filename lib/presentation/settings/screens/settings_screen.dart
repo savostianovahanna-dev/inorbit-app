@@ -94,26 +94,10 @@ class _SettingsContentState extends State<SettingsContent> {
           ),
           const SizedBox(height: 24),
 
-          // ── Appearance ───────────────────────────────────────────────────────
-          const _SectionLabel('Appearance'),
-          const SizedBox(height: 12),
-          const _SettingsCard(
-            children: [
-              _ValueRow(title: 'Theme', value: 'Light'),
-            ],
-          ),
-          const SizedBox(height: 24),
-
           // ── Data & Privacy ───────────────────────────────────────────────────
           const _SectionLabel('Data & Privacy'),
           const SizedBox(height: 12),
-          const _SettingsCard(
-            children: [
-              _ValueRow(title: 'Export my data'),
-              _RowDivider(),
-              _ValueRow(title: 'Privacy policy'),
-            ],
-          ),
+          const _SettingsCard(children: [_ValueRow(title: 'Privacy policy')]),
           const SizedBox(height: 32),
 
           // ── Bottom: version + log out + delete ───────────────────────────────
@@ -191,12 +175,11 @@ class _ProfileCard extends StatelessWidget {
 
           // ── Edit profile link ─────────────────────────────────────────────
           GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const EditProfileScreen(),
-              ),
-            ),
+            onTap:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                ),
             child: Text(
               'Edit profile',
               style: AppTextStyles.labelRegular14.copyWith(
@@ -312,11 +295,7 @@ class _ToggleRow extends StatelessWidget {
 // ─── Row with a value label + chevron ────────────────────────────────────────
 
 class _ValueRow extends StatelessWidget {
-  const _ValueRow({
-    required this.title,
-    this.subtitle,
-    this.value,
-  });
+  const _ValueRow({required this.title, this.subtitle, this.value});
 
   final String title;
   final String? subtitle;
@@ -415,17 +394,19 @@ class _Toggle extends StatelessWidget {
 class _ChevronRightPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.cardBorder
-      ..strokeWidth = 1.33
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
+    final paint =
+        Paint()
+          ..color = AppColors.cardBorder
+          ..strokeWidth = 1.33
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..style = PaintingStyle.stroke;
 
-    final path = Path()
-      ..moveTo(size.width * 0.36, size.height * 0.22)
-      ..lineTo(size.width * 0.64, size.height * 0.50)
-      ..lineTo(size.width * 0.36, size.height * 0.78);
+    final path =
+        Path()
+          ..moveTo(size.width * 0.36, size.height * 0.22)
+          ..lineTo(size.width * 0.64, size.height * 0.50)
+          ..lineTo(size.width * 0.36, size.height * 0.78);
 
     canvas.drawPath(path, paint);
   }

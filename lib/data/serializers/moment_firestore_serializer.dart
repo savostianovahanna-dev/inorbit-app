@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../domain/entities/moment.dart';
 
-class MomentFirestoreMapper {
+class MomentFirestoreSerializer {
   Moment fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return Moment(
