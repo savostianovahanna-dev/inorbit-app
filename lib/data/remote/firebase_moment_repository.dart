@@ -2,13 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../domain/entities/moment.dart';
 import '../../domain/repositories/moment_repository.dart';
-import '../models/moment_firestore_mapper.dart';
+import '../serializers/moment_firestore_serializer.dart';
 
 class FirebaseMomentRepository implements MomentRepository {
-  FirebaseMomentRepository(this.userId, this.mapper);
+  FirebaseMomentRepository(this.userId, this.serializer);
 
   final String userId;
-  final MomentFirestoreMapper mapper;
+  final MomentFirestoreSerializer serializer;
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
@@ -22,34 +22,35 @@ class FirebaseMomentRepository implements MomentRepository {
       .where('friendId', isEqualTo: friendId)
       .orderBy('date', descending: true)
       .snapshots()
-      .map((snap) => snap.docs.map(mapper.fromFirestore).toList());
+      .map((snap) => snap.docs.map(serializer.fromFirestore).toList());
 
   // ── Futures ───────────────────────────────────────────────────────────────
 
   @override
   Future<Moment?> getMostRecentForFriend(String friendId) async {
-    final snap = await _collection
-        .where('friendId', isEqualTo: friendId)
-        .orderBy('date', descending: true)
-        .limit(1)
-        .get();
+    final snap =
+        await _collection
+            .where('friendId', isEqualTo: friendId)
+            .orderBy('date', descending: true)
+            .limit(1)
+            .get();
     if (snap.docs.isEmpty) return null;
-    return mapper.fromFirestore(snap.docs.first);
+    return serializer.fromFirestore(snap.docs.first);
   }
 
   @override
   Future<void> addMoment(Moment moment) =>
-      _collection.doc(moment.id).set(mapper.toFirestore(moment));
+      _collection.doc(moment.id).set(serializer.toFirestore(moment));
 
   @override
   Future<void> updateMoment(Moment moment) =>
-      _collection.doc(moment.id).update(mapper.toFirestore(moment));
+      _collection.doc(moment.id).update(serializer.toFirestore(moment));
 
   @override
   Future<void> deleteMoment(String id) => _collection.doc(id).delete();
 
   Future<List<Moment>> getAllMomentsOnce() async {
     final snap = await _collection.get();
-    return snap.docs.map(mapper.fromFirestore).toList();
+    return snap.docs.map(serializer.fromFirestore).toList();
   }
 }

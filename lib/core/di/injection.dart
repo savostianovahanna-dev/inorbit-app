@@ -3,10 +3,10 @@ import 'package:get_it/get_it.dart';
 import '../../data/local/app_database.dart';
 import '../../data/local/daos/friends_dao.dart';
 import '../../data/local/daos/moments_dao.dart';
-import '../../data/models/friend_firestore_mapper.dart';
-import '../../data/models/friend_mapper.dart';
-import '../../data/models/moment_firestore_mapper.dart';
-import '../../data/models/moment_mapper.dart';
+import '../../data/serializers/friend_firestore_serializer.dart';
+import '../../data/serializers/friend_serializer.dart';
+import '../../data/serializers/moment_firestore_serializer.dart';
+import '../../data/serializers/moment_serializer.dart';
 import '../../data/remote/firebase_friend_repository.dart';
 import '../../data/remote/firebase_moment_repository.dart';
 import '../../data/repositories/local_friend_repository.dart';
@@ -35,24 +35,24 @@ void setupDependencies() {
   getIt.registerSingleton<FriendsDao>(getIt<AppDatabase>().friendsDao);
   getIt.registerSingleton<MomentsDao>(getIt<AppDatabase>().momentsDao);
 
-  // Mappers — stateless, safe to share
-  getIt.registerSingleton<FriendMapper>(const FriendMapper());
-  getIt.registerSingleton<MomentMapper>(const MomentMapper());
+  // Serializers — stateless, safe to share
+  getIt.registerSingleton<FriendSerializer>(const FriendSerializer());
+  getIt.registerSingleton<MomentSerializer>(const MomentSerializer());
 
   // Firestore mappers — stateless, safe to share
-  getIt.registerLazySingleton<FriendFirestoreMapper>(
-    () => FriendFirestoreMapper(),
+  getIt.registerLazySingleton<FriendFirestoreSerializer>(
+    () => FriendFirestoreSerializer(),
   );
-  getIt.registerLazySingleton<MomentFirestoreMapper>(
-    () => MomentFirestoreMapper(),
+  getIt.registerLazySingleton<MomentFirestoreSerializer>(
+    () => MomentFirestoreSerializer(),
   );
 
   // Local repositories — concrete types registered for use by synced repos
   getIt.registerSingleton<LocalFriendRepository>(
-    LocalFriendRepository(getIt<FriendsDao>(), getIt<FriendMapper>()),
+    LocalFriendRepository(getIt<FriendsDao>(), getIt<FriendSerializer>()),
   );
   getIt.registerSingleton<LocalMomentRepository>(
-    LocalMomentRepository(getIt<MomentsDao>(), getIt<MomentMapper>()),
+    LocalMomentRepository(getIt<MomentsDao>(), getIt<MomentSerializer>()),
   );
 
   // Repositories — start with local-only; upgraded to synced after login
@@ -68,12 +68,8 @@ void setupDependencies() {
   );
 
   // BLoCs — factory so each screen gets a fresh instance with its own state
-  getIt.registerFactory<HomeBloc>(
-    () => HomeBloc(getIt<WatchFriends>()),
-  );
-  getIt.registerFactory<StatsBloc>(
-    () => StatsBloc(getIt<GetStats>()),
-  );
+  getIt.registerFactory<HomeBloc>(() => HomeBloc(getIt<WatchFriends>()));
+  getIt.registerFactory<StatsBloc>(() => StatsBloc(getIt<GetStats>()));
 }
 
 /// Called once after successful login to wire up Firestore + synced repos.
@@ -82,10 +78,10 @@ void initRemoteRepositories(String userId) {
   if (getIt.isRegistered<FirebaseFriendRepository>()) return;
 
   getIt.registerSingleton<FirebaseFriendRepository>(
-    FirebaseFriendRepository(userId, getIt<FriendFirestoreMapper>()),
+    FirebaseFriendRepository(userId, getIt<FriendFirestoreSerializer>()),
   );
   getIt.registerSingleton<FirebaseMomentRepository>(
-    FirebaseMomentRepository(userId, getIt<MomentFirestoreMapper>()),
+    FirebaseMomentRepository(userId, getIt<MomentFirestoreSerializer>()),
   );
   getIt.registerSingleton<SyncedFriendRepository>(
     SyncedFriendRepository(
@@ -113,9 +109,21 @@ void initRemoteRepositories(String userId) {
 
   // SyncData use case — depends on both synced repos
   getIt.registerSingleton<SyncData>(
-    SyncData(
-      getIt<SyncedFriendRepository>(),
-      getIt<SyncedMomentRepository>(),
-    ),
+    SyncData(getIt<SyncedFriendRepository>(), getIt<SyncedMomentRepository>()),
+  );
+
+  // Re-register use cases with synced repositories
+  if (getIt.isRegistered<WatchFriends>()) {
+    getIt.unregister<WatchFriends>();
+  }
+  getIt.registerSingleton<WatchFriends>(
+    WatchFriends(getIt<FriendRepository>()),
+  );
+
+  if (getIt.isRegistered<GetStats>()) {
+    getIt.unregister<GetStats>();
+  }
+  getIt.registerSingleton<GetStats>(
+    GetStats(getIt<FriendRepository>(), getIt<MomentRepository>()),
   );
 }

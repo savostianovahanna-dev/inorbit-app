@@ -1,21 +1,22 @@
+import 'package:inorbit/data/serializers/moment_serializer.dart';
+
 import '../../core/error/failures.dart';
 import '../../domain/entities/moment.dart';
 import '../../domain/repositories/moment_repository.dart';
 import '../local/daos/moments_dao.dart';
-import '../models/moment_mapper.dart';
 
 class LocalMomentRepository implements MomentRepository {
-  LocalMomentRepository(this._dao, this._mapper);
+  LocalMomentRepository(this._dao, this._serializer);
 
   final MomentsDao _dao;
-  final MomentMapper _mapper;
+  final MomentSerializer _serializer;
 
   // ── Streams ──────────────────────────────────────────────────────────────
 
   @override
   Stream<List<Moment>> watchMomentsForFriend(String friendId) => _dao
       .watchMomentsForFriend(friendId)
-      .map((rows) => rows.map(_mapper.fromDrift).toList())
+      .map((rows) => rows.map(_serializer.fromDrift).toList())
       .handleError(_rethrowAsDatabaseFailure);
 
   // ── Futures ───────────────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ class LocalMomentRepository implements MomentRepository {
   Future<Moment?> getMostRecentForFriend(String friendId) async {
     try {
       final row = await _dao.getMostRecentForFriend(friendId);
-      return row == null ? null : _mapper.fromDrift(row);
+      return row == null ? null : _serializer.fromDrift(row);
     } catch (e) {
       throw DatabaseFailure(e.toString());
     }
@@ -33,7 +34,7 @@ class LocalMomentRepository implements MomentRepository {
   @override
   Future<void> addMoment(Moment moment) async {
     try {
-      await _dao.insertMoment(_mapper.toDrift(moment));
+      await _dao.insertMoment(_serializer.toDrift(moment));
     } catch (e) {
       throw DatabaseFailure(e.toString());
     }
@@ -42,7 +43,7 @@ class LocalMomentRepository implements MomentRepository {
   @override
   Future<void> updateMoment(Moment moment) async {
     try {
-      await _dao.updateMomentById(_mapper.toDrift(moment));
+      await _dao.updateMomentById(_serializer.toDrift(moment));
     } catch (e) {
       throw DatabaseFailure(e.toString());
     }
@@ -59,7 +60,7 @@ class LocalMomentRepository implements MomentRepository {
 
   Future<void> addOrUpdateMoment(Moment moment) async {
     try {
-      final companion = _mapper.toDrift(moment);
+      final companion = _serializer.toDrift(moment);
       await _dao.insertOrUpdateMoment(companion);
     } catch (e) {
       throw DatabaseFailure(e.toString());
