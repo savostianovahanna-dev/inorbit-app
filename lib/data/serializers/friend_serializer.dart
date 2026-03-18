@@ -16,6 +16,7 @@ class FriendSerializer {
     frequencyDays: data.frequencyDays,
     lastConnectedAt: data.lastConnectedAt,
     createdAt: data.createdAt,
+    avatarUrl: data.avatarUrl,
   );
 
   FriendsTableCompanion toDrift(Friend entity, {String? userId}) =>
@@ -30,5 +31,6 @@ class FriendSerializer {
         lastConnectedAt: Value(entity.lastConnectedAt),
         createdAt: Value(entity.createdAt),
         userId: Value(userId),
+        avatarUrl: Value(entity.avatarUrl),
       );
 }

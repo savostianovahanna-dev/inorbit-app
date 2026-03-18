@@ -9,17 +9,18 @@ part 'app_database.g.dart';
 
 @DataClassName('FriendsTableData')
 class FriendsTable extends Table {
-  TextColumn get id              => text()();
-  TextColumn get name            => text()();
-  TextColumn get avatarPath      => text().nullable()();
-  IntColumn  get planetIndex     => integer().nullable()();
-  DateTimeColumn get birthday    => dateTime().nullable()();
-  TextColumn get orbitTier       => text()();
-  IntColumn  get frequencyDays   => integer()();
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get avatarPath => text().nullable()();
+  TextColumn get avatarUrl => text().nullable()();
+  IntColumn get planetIndex => integer().nullable()();
+  DateTimeColumn get birthday => dateTime().nullable()();
+  TextColumn get orbitTier => text()();
+  IntColumn get frequencyDays => integer()();
   DateTimeColumn get lastConnectedAt => dateTime().nullable()();
-  DateTimeColumn get createdAt   => dateTime()();
+  DateTimeColumn get createdAt => dateTime()();
   // Added in schema v2 — nullable so existing rows migrate gracefully.
-  TextColumn get userId          => text().nullable()();
+  TextColumn get userId => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -27,17 +28,18 @@ class FriendsTable extends Table {
 
 @DataClassName('MomentsTableData')
 class MomentsTable extends Table {
-  TextColumn get id          => text()();
-  TextColumn get friendId    =>
+  TextColumn get id => text()();
+  TextColumn get friendId =>
       text().references(FriendsTable, #id, onDelete: KeyAction.cascade)();
-  TextColumn get type        => text()();
+  TextColumn get type => text()();
   // 'customType' clashes with Table.customType<T>() — use a distinct Dart name
   // while preserving the SQLite column name 'custom_type'.
   TextColumn get momentCustomType => text().nullable().named('custom_type')();
-  DateTimeColumn get date    => dateTime()();
-  TextColumn get note        => text().nullable()();
+  DateTimeColumn get date => dateTime()();
+  TextColumn get note => text().nullable()();
+
   /// JSON-encoded List<String> of local file paths.
-  TextColumn get photoPaths  => text().nullable()();
+  TextColumn get photoPaths => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
 
   @override
@@ -54,19 +56,22 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) => m.createAll(),
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            // Add userId column (nullable — existing rows keep NULL until next sync)
-            await m.addColumn(friendsTable, friendsTable.userId);
-          }
-        },
-        beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
-      );
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(friendsTable, friendsTable.userId);
+      }
+      if (from < 3) {
+        await m.addColumn(
+          friendsTable,
+          friendsTable.avatarUrl as GeneratedColumn,
+        );
+      }
+    },
+  );
 
   static QueryExecutor _openConnection() => driftDatabase(name: 'inorbit');
 }

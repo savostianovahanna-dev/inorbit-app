@@ -13,8 +13,8 @@ import '../repositories/moment_repository.dart';
 /// single "all moments" stream.  This use-case subscribes to every friend's
 /// moment stream individually and re-computes stats on every emission from
 /// any of them.
-class GetStats {
-  const GetStats(this._friendRepo, this._momentRepo);
+class GetStatsUseCase {
+  const GetStatsUseCase(this._friendRepo, this._momentRepo);
 
   final FriendRepository _friendRepo;
   final MomentRepository _momentRepo;
@@ -39,37 +39,34 @@ class GetStats {
       momentSubs[friend.id] = _momentRepo
           .watchMomentsForFriend(friend.id)
           .listen((moments) {
-        momentsByFriend[friend.id] = moments;
-        recompute();
-      });
+            momentsByFriend[friend.id] = moments;
+            recompute();
+          });
     }
 
     controller.onListen = () {
-      friendsSub = _friendRepo.watchFriendsOrderedByOverdue().listen(
-        (friends) {
-          currentFriends = friends;
-          final currentIds = friends.map((f) => f.id).toSet();
+      friendsSub = _friendRepo.watchFriendsOrderedByOverdue().listen((friends) {
+        currentFriends = friends;
+        final currentIds = friends.map((f) => f.id).toSet();
 
-          // Cancel subscriptions for friends that were removed.
-          for (final id in momentSubs.keys.toList()) {
-            if (!currentIds.contains(id)) {
-              momentSubs.remove(id)?.cancel();
-              momentsByFriend.remove(id);
-            }
+        // Cancel subscriptions for friends that were removed.
+        for (final id in momentSubs.keys.toList()) {
+          if (!currentIds.contains(id)) {
+            momentSubs.remove(id)?.cancel();
+            momentsByFriend.remove(id);
           }
+        }
 
-          // Subscribe to newly added friends.
-          for (final f in friends) {
-            if (!momentSubs.containsKey(f.id)) {
-              subscribeFriend(f);
-            }
+        // Subscribe to newly added friends.
+        for (final f in friends) {
+          if (!momentSubs.containsKey(f.id)) {
+            subscribeFriend(f);
           }
+        }
 
-          // Emit immediately with data we already have for unchanged friends.
-          recompute();
-        },
-        onError: controller.addError,
-      );
+        // Emit immediately with data we already have for unchanged friends.
+        recompute();
+      }, onError: controller.addError);
     };
 
     controller.onCancel = () {

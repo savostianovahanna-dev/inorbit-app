@@ -2,14 +2,16 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:uuid/uuid.dart';
+import 'package:inorbit/bloc/add_friend/add_friend_event.dart';
+import 'package:inorbit/core/theme/app_colors.dart';
+import 'package:inorbit/core/theme/app_text_styles.dart';
+import 'package:inorbit/domain/usecases/add_friend.use_case.dart';
+import 'package:inorbit/presentation/create_friend/screens/add_friend_success_screen.dart';
+import '../../../bloc/add_friend/add_friend_bloc.dart';
+import '../../../bloc/add_friend/add_friend_state.dart';
 import '../../../core/di/injection.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../../domain/entities/friend.dart';
-import '../../../domain/repositories/friend_repository.dart';
-import 'add_friend_success_screen.dart';
 
 // ─── Planet asset paths ───────────────────────────────────────────────────────
 
@@ -26,14 +28,27 @@ const _kPlanets = [
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
-class AddFriendScreen extends StatefulWidget {
+class AddFriendScreen extends StatelessWidget {
   const AddFriendScreen({super.key});
 
   @override
-  State<AddFriendScreen> createState() => _AddFriendScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => getIt<AddFriendBloc>(),
+      child: const _AddFriendScreenContent(),
+    );
+  }
 }
 
-class _AddFriendScreenState extends State<AddFriendScreen> {
+class _AddFriendScreenContent extends StatefulWidget {
+  const _AddFriendScreenContent();
+
+  @override
+  State<_AddFriendScreenContent> createState() =>
+      _AddFriendScreenContentState();
+}
+
+class _AddFriendScreenContentState extends State<_AddFriendScreenContent> {
   int _step = 1;
   static const _totalSteps = 3;
 
@@ -57,36 +72,27 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   Future<void> _goNext() async {
     if (_step < _totalSteps) {
       setState(() => _step++);
-    } else {
-      if (_saving) return;
-      setState(() => _saving = true);
-      try {
-        final name =
-            _nameCtrl.text.trim().isNotEmpty ? _nameCtrl.text.trim() : 'Friend';
-        const orbitTiers = ['inner_circle', 'regulars', 'casuals'];
-        const freqDays = [14, 30, 90];
-        final friend = Friend(
-          id: const Uuid().v4(),
+      return;
+    }
+    if (_saving) return;
+
+    const orbitTiers = ['inner_circle', 'regulars', 'casuals'];
+    const freqDays = [14, 30, 90];
+    final name =
+        _nameCtrl.text.trim().isNotEmpty ? _nameCtrl.text.trim() : 'Friend';
+
+    context.read<AddFriendBloc>().add(
+      AddFriendSubmitted(
+        AddFriendParams(
           name: name,
+          avatarFilePath: _avatarFilePath,
           planetIndex: _planetIndex,
-          avatarPath: _avatarFilePath,
           orbitTier: orbitTiers[_orbitTierIndex],
           frequencyDays: freqDays[_orbitTierIndex],
           lastConnectedAt: _lastConnectedAt,
-          createdAt: DateTime.now(),
-        );
-        await getIt<FriendRepository>().addFriend(friend);
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => AddFriendSuccessScreen(friendName: name),
-            ),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _saving = false);
-      }
-    }
+        ),
+      ),
+    );
   }
 
   void _goBack() {
@@ -99,53 +105,70 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.of(context).padding.bottom;
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 96 + bottomPad),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _AddFriendHeader(
-                    onBack: _goBack,
-                    onClose:
-                        () => Navigator.of(context).popUntil((r) => r.isFirst),
-                  ),
-                  const SizedBox(height: 12),
-                  _ProgressBar(currentStep: _step, totalSteps: _totalSteps),
-                  const SizedBox(height: 24),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    transitionBuilder:
-                        (child, anim) =>
-                            FadeTransition(opacity: anim, child: child),
-                    child: KeyedSubtree(
-                      key: ValueKey(_step),
-                      child: _buildStepContent(),
+    return BlocListener<AddFriendBloc, AddFriendState>(
+      listener: (context, state) {
+        if (state is AddFriendLoading) {
+          setState(() => _saving = true);
+        } else if (state is AddFriendSuccess) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder:
+                  (_) => AddFriendSuccessScreen(friendName: state.friendName),
+            ),
+          );
+        } else if (state is AddFriendError) {
+          setState(() => _saving = false);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 96),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _AddFriendHeader(
+                      onBack: _goBack,
+                      onClose:
+                          () =>
+                              Navigator.of(context).popUntil((r) => r.isFirst),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    _ProgressBar(currentStep: _step, totalSteps: _totalSteps),
+                    const SizedBox(height: 24),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      transitionBuilder:
+                          (child, anim) =>
+                              FadeTransition(opacity: anim, child: child),
+                      child: KeyedSubtree(
+                        key: ValueKey(_step),
+                        child: _buildStepContent(),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: _ContinueButton(
-                label: _step < _totalSteps
-                    ? 'Continue →'
-                    : (_saving ? 'Saving...' : 'Add to orbit'),
-                showCheck: _step == _totalSteps && !_saving,
-                onTap: _saving ? () {} : _goNext,
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: _ContinueButton(
+                  label:
+                      _step < _totalSteps
+                          ? 'Continue →'
+                          : (_saving ? 'Saving...' : 'Add to orbit'),
+                  showCheck: _step == _totalSteps && !_saving,
+                  onTap: _saving ? () {} : _goNext,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -371,9 +394,7 @@ class _AvatarPickerState extends State<_AvatarPicker> {
                 _pickedFile = null;
               });
               // "assets/images/planets/planet_3.png" → 3
-              final index = int.tryParse(
-                path.split('_').last.split('.').first,
-              );
+              final index = int.tryParse(path.split('_').last.split('.').first);
               widget.onPlanetIndexChanged?.call(index);
               widget.onAvatarPathChanged?.call(null);
               Navigator.pop(context);

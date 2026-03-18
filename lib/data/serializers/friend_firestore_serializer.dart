@@ -21,6 +21,7 @@ class FriendFirestoreSerializer {
               ? null
               : (data['lastConnectedAt'] as Timestamp).toDate(),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      avatarUrl: data['avatarUrl'] as String?,
     );
   }
 
@@ -39,6 +40,7 @@ class FriendFirestoreSerializer {
     if (friend.lastConnectedAt != null) {
       map['lastConnectedAt'] = Timestamp.fromDate(friend.lastConnectedAt!);
     }
+    if (friend.avatarUrl != null) map['avatarUrl'] = friend.avatarUrl;
     return map;
   }
 }
