@@ -22,6 +22,8 @@ class FriendFirestoreSerializer {
               : (data['lastConnectedAt'] as Timestamp).toDate(),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       avatarUrl: data['avatarUrl'] as String?,
+      remindBirthday: (data['remindBirthday'] as bool?) ?? true,
+      notes: data['notes'] as String?,
     );
   }
 
@@ -41,6 +43,8 @@ class FriendFirestoreSerializer {
       map['lastConnectedAt'] = Timestamp.fromDate(friend.lastConnectedAt!);
     }
     if (friend.avatarUrl != null) map['avatarUrl'] = friend.avatarUrl;
+    if (!friend.remindBirthday) map['remindBirthday'] = false;
+    if (friend.notes != null) map['notes'] = friend.notes;
     return map;
   }
 }

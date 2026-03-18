@@ -21,6 +21,10 @@ class FriendsTable extends Table {
   DateTimeColumn get createdAt => dateTime()();
   // Added in schema v2 — nullable so existing rows migrate gracefully.
   TextColumn get userId => text().nullable()();
+  // Added in schema v4
+  BoolColumn get remindBirthday =>
+      boolean().withDefault(const Constant(true))();
+  TextColumn get notes => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -56,7 +60,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -69,6 +73,10 @@ class AppDatabase extends _$AppDatabase {
           friendsTable,
           friendsTable.avatarUrl as GeneratedColumn,
         );
+      }
+      if (from < 4) {
+        await m.addColumn(friendsTable, friendsTable.remindBirthday);
+        await m.addColumn(friendsTable, friendsTable.notes);
       }
     },
   );

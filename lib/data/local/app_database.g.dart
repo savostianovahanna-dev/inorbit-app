@@ -125,6 +125,30 @@ class $FriendsTableTable extends FriendsTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _remindBirthdayMeta = const VerificationMeta(
+    'remindBirthday',
+  );
+  @override
+  late final GeneratedColumn<bool> remindBirthday = GeneratedColumn<bool>(
+    'remind_birthday',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("remind_birthday" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -138,6 +162,8 @@ class $FriendsTableTable extends FriendsTable
     lastConnectedAt,
     createdAt,
     userId,
+    remindBirthday,
+    notes,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -233,6 +259,21 @@ class $FriendsTableTable extends FriendsTable
         userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
       );
     }
+    if (data.containsKey('remind_birthday')) {
+      context.handle(
+        _remindBirthdayMeta,
+        remindBirthday.isAcceptableOrUnknown(
+          data['remind_birthday']!,
+          _remindBirthdayMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
     return context;
   }
 
@@ -291,6 +332,15 @@ class $FriendsTableTable extends FriendsTable
         DriftSqlType.string,
         data['${effectivePrefix}user_id'],
       ),
+      remindBirthday:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}remind_birthday'],
+          )!,
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
     );
   }
 
@@ -313,6 +363,8 @@ class FriendsTableData extends DataClass
   final DateTime? lastConnectedAt;
   final DateTime createdAt;
   final String? userId;
+  final bool remindBirthday;
+  final String? notes;
   const FriendsTableData({
     required this.id,
     required this.name,
@@ -325,6 +377,8 @@ class FriendsTableData extends DataClass
     this.lastConnectedAt,
     required this.createdAt,
     this.userId,
+    required this.remindBirthday,
+    this.notes,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -351,6 +405,10 @@ class FriendsTableData extends DataClass
     map['created_at'] = Variable<DateTime>(createdAt);
     if (!nullToAbsent || userId != null) {
       map['user_id'] = Variable<String>(userId);
+    }
+    map['remind_birthday'] = Variable<bool>(remindBirthday);
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
     }
     return map;
   }
@@ -384,6 +442,9 @@ class FriendsTableData extends DataClass
       createdAt: Value(createdAt),
       userId:
           userId == null && nullToAbsent ? const Value.absent() : Value(userId),
+      remindBirthday: Value(remindBirthday),
+      notes:
+          notes == null && nullToAbsent ? const Value.absent() : Value(notes),
     );
   }
 
@@ -404,6 +465,8 @@ class FriendsTableData extends DataClass
       lastConnectedAt: serializer.fromJson<DateTime?>(json['lastConnectedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       userId: serializer.fromJson<String?>(json['userId']),
+      remindBirthday: serializer.fromJson<bool>(json['remindBirthday']),
+      notes: serializer.fromJson<String?>(json['notes']),
     );
   }
   @override
@@ -421,6 +484,8 @@ class FriendsTableData extends DataClass
       'lastConnectedAt': serializer.toJson<DateTime?>(lastConnectedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'userId': serializer.toJson<String?>(userId),
+      'remindBirthday': serializer.toJson<bool>(remindBirthday),
+      'notes': serializer.toJson<String?>(notes),
     };
   }
 
@@ -436,6 +501,8 @@ class FriendsTableData extends DataClass
     Value<DateTime?> lastConnectedAt = const Value.absent(),
     DateTime? createdAt,
     Value<String?> userId = const Value.absent(),
+    bool? remindBirthday,
+    Value<String?> notes = const Value.absent(),
   }) => FriendsTableData(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -449,6 +516,8 @@ class FriendsTableData extends DataClass
         lastConnectedAt.present ? lastConnectedAt.value : this.lastConnectedAt,
     createdAt: createdAt ?? this.createdAt,
     userId: userId.present ? userId.value : this.userId,
+    remindBirthday: remindBirthday ?? this.remindBirthday,
+    notes: notes.present ? notes.value : this.notes,
   );
   FriendsTableData copyWithCompanion(FriendsTableCompanion data) {
     return FriendsTableData(
@@ -471,6 +540,11 @@ class FriendsTableData extends DataClass
               : this.lastConnectedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       userId: data.userId.present ? data.userId.value : this.userId,
+      remindBirthday:
+          data.remindBirthday.present
+              ? data.remindBirthday.value
+              : this.remindBirthday,
+      notes: data.notes.present ? data.notes.value : this.notes,
     );
   }
 
@@ -487,7 +561,9 @@ class FriendsTableData extends DataClass
           ..write('frequencyDays: $frequencyDays, ')
           ..write('lastConnectedAt: $lastConnectedAt, ')
           ..write('createdAt: $createdAt, ')
-          ..write('userId: $userId')
+          ..write('userId: $userId, ')
+          ..write('remindBirthday: $remindBirthday, ')
+          ..write('notes: $notes')
           ..write(')'))
         .toString();
   }
@@ -505,6 +581,8 @@ class FriendsTableData extends DataClass
     lastConnectedAt,
     createdAt,
     userId,
+    remindBirthday,
+    notes,
   );
   @override
   bool operator ==(Object other) =>
@@ -520,7 +598,9 @@ class FriendsTableData extends DataClass
           other.frequencyDays == this.frequencyDays &&
           other.lastConnectedAt == this.lastConnectedAt &&
           other.createdAt == this.createdAt &&
-          other.userId == this.userId);
+          other.userId == this.userId &&
+          other.remindBirthday == this.remindBirthday &&
+          other.notes == this.notes);
 }
 
 class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
@@ -535,6 +615,8 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
   final Value<DateTime?> lastConnectedAt;
   final Value<DateTime> createdAt;
   final Value<String?> userId;
+  final Value<bool> remindBirthday;
+  final Value<String?> notes;
   final Value<int> rowid;
   const FriendsTableCompanion({
     this.id = const Value.absent(),
@@ -548,6 +630,8 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     this.lastConnectedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.userId = const Value.absent(),
+    this.remindBirthday = const Value.absent(),
+    this.notes = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   FriendsTableCompanion.insert({
@@ -562,6 +646,8 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     this.lastConnectedAt = const Value.absent(),
     required DateTime createdAt,
     this.userId = const Value.absent(),
+    this.remindBirthday = const Value.absent(),
+    this.notes = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -580,6 +666,8 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     Expression<DateTime>? lastConnectedAt,
     Expression<DateTime>? createdAt,
     Expression<String>? userId,
+    Expression<bool>? remindBirthday,
+    Expression<String>? notes,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -594,6 +682,8 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
       if (lastConnectedAt != null) 'last_connected_at': lastConnectedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (userId != null) 'user_id': userId,
+      if (remindBirthday != null) 'remind_birthday': remindBirthday,
+      if (notes != null) 'notes': notes,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -610,6 +700,8 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     Value<DateTime?>? lastConnectedAt,
     Value<DateTime>? createdAt,
     Value<String?>? userId,
+    Value<bool>? remindBirthday,
+    Value<String?>? notes,
     Value<int>? rowid,
   }) {
     return FriendsTableCompanion(
@@ -624,6 +716,8 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
       lastConnectedAt: lastConnectedAt ?? this.lastConnectedAt,
       createdAt: createdAt ?? this.createdAt,
       userId: userId ?? this.userId,
+      remindBirthday: remindBirthday ?? this.remindBirthday,
+      notes: notes ?? this.notes,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -664,6 +758,12 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     if (userId.present) {
       map['user_id'] = Variable<String>(userId.value);
     }
+    if (remindBirthday.present) {
+      map['remind_birthday'] = Variable<bool>(remindBirthday.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -684,6 +784,8 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
           ..write('lastConnectedAt: $lastConnectedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('userId: $userId, ')
+          ..write('remindBirthday: $remindBirthday, ')
+          ..write('notes: $notes, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1260,6 +1362,8 @@ typedef $$FriendsTableTableCreateCompanionBuilder =
       Value<DateTime?> lastConnectedAt,
       required DateTime createdAt,
       Value<String?> userId,
+      Value<bool> remindBirthday,
+      Value<String?> notes,
       Value<int> rowid,
     });
 typedef $$FriendsTableTableUpdateCompanionBuilder =
@@ -1275,6 +1379,8 @@ typedef $$FriendsTableTableUpdateCompanionBuilder =
       Value<DateTime?> lastConnectedAt,
       Value<DateTime> createdAt,
       Value<String?> userId,
+      Value<bool> remindBirthday,
+      Value<String?> notes,
       Value<int> rowid,
     });
 
@@ -1369,6 +1475,16 @@ class $$FriendsTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get remindBirthday => $composableBuilder(
+    column: $table.remindBirthday,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> momentsTableRefs(
     Expression<bool> Function($$MomentsTableTableFilterComposer f) f,
   ) {
@@ -1458,6 +1574,16 @@ class $$FriendsTableTableOrderingComposer
     column: $table.userId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get remindBirthday => $composableBuilder(
+    column: $table.remindBirthday,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$FriendsTableTableAnnotationComposer
@@ -1509,6 +1635,14 @@ class $$FriendsTableTableAnnotationComposer
 
   GeneratedColumn<String> get userId =>
       $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<bool> get remindBirthday => $composableBuilder(
+    column: $table.remindBirthday,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
 
   Expression<T> momentsTableRefs<T extends Object>(
     Expression<T> Function($$MomentsTableTableAnnotationComposer a) f,
@@ -1576,6 +1710,8 @@ class $$FriendsTableTableTableManager
                 Value<DateTime?> lastConnectedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String?> userId = const Value.absent(),
+                Value<bool> remindBirthday = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FriendsTableCompanion(
                 id: id,
@@ -1589,6 +1725,8 @@ class $$FriendsTableTableTableManager
                 lastConnectedAt: lastConnectedAt,
                 createdAt: createdAt,
                 userId: userId,
+                remindBirthday: remindBirthday,
+                notes: notes,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1604,6 +1742,8 @@ class $$FriendsTableTableTableManager
                 Value<DateTime?> lastConnectedAt = const Value.absent(),
                 required DateTime createdAt,
                 Value<String?> userId = const Value.absent(),
+                Value<bool> remindBirthday = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FriendsTableCompanion.insert(
                 id: id,
@@ -1617,6 +1757,8 @@ class $$FriendsTableTableTableManager
                 lastConnectedAt: lastConnectedAt,
                 createdAt: createdAt,
                 userId: userId,
+                remindBirthday: remindBirthday,
+                notes: notes,
                 rowid: rowid,
               ),
           withReferenceMapper:

@@ -1,38 +1,60 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../domain/entities/friend.dart';
 import '../../../domain/entities/moment.dart';
 import '../../../domain/repositories/moment_repository.dart';
 
-/// "Log a moment" screen — Figma node 58-7441.
-///
-/// Lets the user record a recent interaction with a friend:
-/// activity type, when it happened, optional photos, and a free-text note.
-/// Saves the moment to the DB via [MomentRepository].
+/// "Log a moment" screen — Figma node 173-7231.
 class LogMomentScreen extends StatefulWidget {
   const LogMomentScreen({
     super.key,
-    required this.friendName,
-    required this.friendId,
+    required this.friend,
   });
 
-  final String friendName;
-  final String friendId;
+  final Friend friend;
 
   @override
   State<LogMomentScreen> createState() => _LogMomentScreenState();
 }
 
 class _LogMomentScreenState extends State<LogMomentScreen> {
-  _ActivityType _selected = _ActivityType.coffee;
-  _WhenOption _when = _WhenOption.yesterday;
+  _ActivityType _selectedActivity = _ActivityType.coffee;
+  _WhenOption _when = _WhenOption.today;
   final _noteController = TextEditingController();
+  final _scrollController = ScrollController();
+  final _notesFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _notesFocusNode.addListener(_onNotesFocusChanged);
+  }
+
+  void _onNotesFocusChanged() {
+    if (_notesFocusNode.hasFocus) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
+    _notesFocusNode.removeListener(_onNotesFocusChanged);
+    _notesFocusNode.dispose();
     _noteController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -46,8 +68,8 @@ class _LogMomentScreenState extends State<LogMomentScreen> {
 
     final moment = Moment(
       id: const Uuid().v4(),
-      friendId: widget.friendId,
-      type: _selected.name,
+      friendId: widget.friend.id,
+      type: _selectedActivity.name,
       date: date,
       note: _noteController.text.trim().isEmpty
           ? null
@@ -71,30 +93,30 @@ class _LogMomentScreenState extends State<LogMomentScreen> {
         child: Stack(
           children: [
             SingleChildScrollView(
+              controller: _scrollController,
               physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 80 + bottomPad),
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 100 + bottomPad),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header: back + "Log a moment" + invisible right btn
-                  _LogHeader(title: 'Log a moment'),
+                  _LogHeader(),
                   const SizedBox(height: 20),
 
-                  // Mini friend card (photo + name)
-                  _FriendMiniCard(name: widget.friendName),
+                  _FriendMiniCard(friend: widget.friend),
                   const SizedBox(height: 20),
 
-                  // Activity type picker
-                  _SectionLabel('How did you connect?'),
+                  Text(
+                    'How did you connect?',
+                    style: AppTextStyles.sectionHeading,
+                  ),
                   const SizedBox(height: 8),
-                  _ActivityRow(
-                    selected: _selected,
-                    onSelect: (t) => setState(() => _selected = t),
+                  _ActivityGrid(
+                    selected: _selectedActivity,
+                    onSelect: (t) => setState(() => _selectedActivity = t),
                   ),
                   const SizedBox(height: 20),
 
-                  // When picker
-                  _SectionLabel('When?'),
+                  Text('When?', style: AppTextStyles.sectionHeading),
                   const SizedBox(height: 8),
                   _WhenRow(
                     selected: _when,
@@ -102,21 +124,21 @@ class _LogMomentScreenState extends State<LogMomentScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Add photos
-                  _SectionLabel('Add photos'),
+                  Text('Add photos', style: AppTextStyles.sectionHeading),
                   const SizedBox(height: 8),
-                  _AddPhotosButton(),
+                  const _PhotosRow(),
                   const SizedBox(height: 20),
 
-                  // Notes textarea
-                  _SectionLabel('What happened?'),
+                  Text('What happened?', style: AppTextStyles.sectionHeading),
                   const SizedBox(height: 8),
-                  _NotesField(controller: _noteController),
+                  _NotesField(
+                    controller: _noteController,
+                    focusNode: _notesFocusNode,
+                  ),
                 ],
               ),
             ),
 
-            // Sticky "Log moment" button
             Positioned(
               bottom: bottomPad + 16,
               left: 16,
@@ -130,30 +152,14 @@ class _LogMomentScreenState extends State<LogMomentScreen> {
   }
 }
 
-// ─── Section label ───────────────────────────────────────────────────────────
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(text, style: AppTextStyles.sectionHeading);
-  }
-}
-
-// ─── Header ──────────────────────────────────────────────────────────────────
+// ─── Header ───────────────────────────────────────────────────────────────────
 
 class _LogHeader extends StatelessWidget {
-  const _LogHeader({required this.title});
-  final String title;
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 40,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
@@ -165,12 +171,11 @@ class _LogHeader extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              title,
+              'Log a moment',
               style: AppTextStyles.headerTitle,
               textAlign: TextAlign.center,
             ),
           ),
-          // Invisible placeholder to keep title centered
           const SizedBox(width: 40),
         ],
       ),
@@ -181,13 +186,12 @@ class _LogHeader extends StatelessWidget {
 class _ChevronPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = AppColors.textPrimary
-          ..strokeWidth = 1.5
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
-          ..style = PaintingStyle.stroke;
+    final paint = Paint()
+      ..color = AppColors.textPrimary
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
     final cx = size.width / 2;
     final cy = size.height / 2;
     canvas.drawPath(
@@ -206,8 +210,41 @@ class _ChevronPainter extends CustomPainter {
 // ─── Friend mini card ─────────────────────────────────────────────────────────
 
 class _FriendMiniCard extends StatelessWidget {
-  const _FriendMiniCard({required this.name});
-  final String name;
+  const _FriendMiniCard({required this.friend});
+  final Friend friend;
+
+  Widget _buildBackground() {
+    if (friend.avatarPath != null && friend.avatarPath!.isNotEmpty) {
+      return Image.file(
+        File(friend.avatarPath!),
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    }
+    if (friend.avatarUrl != null && friend.avatarUrl!.isNotEmpty) {
+      return Image.network(
+        friend.avatarUrl!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    }
+    if (friend.planetIndex != null) {
+      return Image.asset(
+        'assets/images/planets/planet_${friend.planetIndex! + 1}.png',
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    }
+    return Image.asset(
+      'assets/onboarding1.png',
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -219,17 +256,7 @@ class _FriendMiniCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Placeholder photo background
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF4A6275), Color(0xFF1E2D3D)],
-                ),
-              ),
-            ),
-            // Gradient overlay
+            _buildBackground(),
             Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -240,11 +267,10 @@ class _FriendMiniCard extends StatelessWidget {
                 ),
               ),
             ),
-            // Name
             Positioned(
-              top: 26,
+              bottom: 14,
               left: 20,
-              child: Text(name, style: AppTextStyles.friendName),
+              child: Text(friend.name, style: AppTextStyles.friendName),
             ),
           ],
         ),
@@ -258,76 +284,50 @@ class _FriendMiniCard extends StatelessWidget {
 enum _ActivityType { coffee, call, text, dinner, movie, shopping, other }
 
 extension _ActivityTypeX on _ActivityType {
-  String get emoji {
-    switch (this) {
-      case _ActivityType.coffee:
-        return '☕';
-      case _ActivityType.call:
-        return '📞';
-      case _ActivityType.text:
-        return '💬';
-      case _ActivityType.dinner:
-        return '🍽';
-      case _ActivityType.movie:
-        return '🎬';
-      case _ActivityType.shopping:
-        return '🛍';
-      case _ActivityType.other:
-        return '✨';
-    }
-  }
+  String get emoji => switch (this) {
+        _ActivityType.coffee => '☕',
+        _ActivityType.call => '📞',
+        _ActivityType.text => '💬',
+        _ActivityType.dinner => '🍽',
+        _ActivityType.movie => '🎬',
+        _ActivityType.shopping => '🛍',
+        _ActivityType.other => '✨',
+      };
 
-  String get label {
-    switch (this) {
-      case _ActivityType.coffee:
-        return 'Coffee';
-      case _ActivityType.call:
-        return 'Call';
-      case _ActivityType.text:
-        return 'Text';
-      case _ActivityType.dinner:
-        return 'Dinner';
-      case _ActivityType.movie:
-        return 'Movie';
-      case _ActivityType.shopping:
-        return 'Shopping';
-      case _ActivityType.other:
-        return 'Other';
-    }
-  }
+  String get label => switch (this) {
+        _ActivityType.coffee => 'Coffee',
+        _ActivityType.call => 'Call',
+        _ActivityType.text => 'Text',
+        _ActivityType.dinner => 'Dinner',
+        _ActivityType.movie => 'Movie',
+        _ActivityType.shopping => 'Shopping',
+        _ActivityType.other => 'Other',
+      };
 }
 
-class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({required this.selected, required this.onSelect});
-
+class _ActivityGrid extends StatelessWidget {
+  const _ActivityGrid({required this.selected, required this.onSelect});
   final _ActivityType selected;
   final ValueChanged<_ActivityType> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children:
-            _ActivityType.values
-                .map(
-                  (t) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: _ActivityPill(
-                      type: t,
-                      isSelected: selected == t,
-                      onTap: () => onSelect(t),
-                    ),
-                  ),
-                )
-                .toList(),
-      ),
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: _ActivityType.values
+          .map((t) => _ActivityChip(
+                type: t,
+                isSelected: selected == t,
+                onTap: () => onSelect(t),
+              ))
+          .toList(),
     );
   }
 }
 
-class _ActivityPill extends StatelessWidget {
-  const _ActivityPill({
+class _ActivityChip extends StatelessWidget {
+  const _ActivityChip({
     required this.type,
     required this.isSelected,
     required this.onTap,
@@ -339,38 +339,70 @@ class _ActivityPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hPadding = isSelected ? 24.0 : 16.0;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
         decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppColors.textSecondary : AppColors.divider,
+            color: isSelected
+                ? const Color(0xFF334155)
+                : const Color(0xFFE2E8F0),
+            width: 1,
           ),
         ),
-        child: SizedBox(
-          width: 58,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(11),
+          child: Stack(
             children: [
-              Text(
-                type.emoji,
-                style: const TextStyle(fontSize: 28, height: 1.2),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                type.label,
-                style:
-                    isSelected
-                        ? AppTextStyles.momentTitle.copyWith(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        )
-                        : AppTextStyles.bodyRegular14.copyWith(fontSize: 14),
-                textAlign: TextAlign.center,
+              if (isSelected) ...[
+                Positioned.fill(
+                  child: Image.asset(
+                    'assets/images/planets/planet_4.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const Positioned.fill(
+                  child: ColoredBox(color: Color(0x8C000000)),
+                ),
+              ],
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: hPadding,
+                  vertical: 12,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 35,
+                      height: 42,
+                      child: Center(
+                        child: Text(
+                          type.emoji,
+                          style: const TextStyle(fontSize: 28, height: 1),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      type.label,
+                      style: isSelected
+                          ? AppTextStyles.tagLabel.copyWith(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            )
+                          : AppTextStyles.bodyRegular14.copyWith(
+                              color: const Color(0xFF334155),
+                              fontSize: 14,
+                            ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -386,7 +418,6 @@ enum _WhenOption { today, yesterday, custom }
 
 class _WhenRow extends StatelessWidget {
   const _WhenRow({required this.selected, required this.onSelect});
-
   final _WhenOption selected;
   final ValueChanged<_WhenOption> onSelect;
 
@@ -440,29 +471,38 @@ class _WhenChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         height: 60,
         decoration: BoxDecoration(
-          color:
-              isSelected
-                  ? AppColors.orange.withValues(alpha: 0.08)
-                  : AppColors.background,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? AppColors.textSecondary : AppColors.divider,
+            color: isSelected
+                ? const Color(0xFF334155)
+                : const Color(0xFFE2E8F0),
+            width: 1,
           ),
         ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style:
-              isSelected
-                  ? AppTextStyles.sectionHeading.copyWith(
-                    color: AppColors.textPrimary,
-                    height: 1,
-                  )
-                  : AppTextStyles.bodyRegular14.copyWith(
-                    fontSize: 16,
-                    color: AppColors.textSecondary,
-                    height: 1,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(9),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (isSelected) ...[
+                Image.asset(
+                  'assets/images/planets/planet_6.png',
+                  fit: BoxFit.cover,
+                ),
+                const ColoredBox(color: Color(0x8C000000)),
+              ],
+              Center(
+                child: Text(
+                  label,
+                  style: AppTextStyles.bodyMedium16.copyWith(
+                    color: isSelected
+                        ? Colors.white
+                        : const Color(0xFF334155),
                   ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -471,7 +511,6 @@ class _WhenChip extends StatelessWidget {
 
 class _DateInputChip extends StatelessWidget {
   const _DateInputChip({required this.isSelected, required this.onTap});
-
   final bool isSelected;
   final VoidCallback onTap;
 
@@ -481,11 +520,11 @@ class _DateInputChip extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: 60,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.divider),
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -493,10 +532,15 @@ class _DateInputChip extends StatelessWidget {
             Text(
               'DD/MM',
               style: AppTextStyles.bodyRegular14.copyWith(
-                color: AppColors.cardBorder,
+                color: const Color(0xFF96A8C2),
+                fontSize: 14,
               ),
             ),
-            const _CalendarIcon(),
+            Image.asset(
+              'assets/images/calendar.png',
+              width: 19,
+              height: 20,
+            ),
           ],
         ),
       ),
@@ -504,85 +548,46 @@ class _DateInputChip extends StatelessWidget {
   }
 }
 
-class _CalendarIcon extends StatelessWidget {
-  const _CalendarIcon();
+// ─── Add photos ───────────────────────────────────────────────────────────────
+
+class _PhotosRow extends StatelessWidget {
+  const _PhotosRow();
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 19,
-      height: 20,
-      child: CustomPaint(painter: _CalendarPainter()),
+    return Row(
+      children: [
+        _PhotoSlot(onTap: () {}),
+        const SizedBox(width: 8),
+        _PhotoSlot(onTap: () {}),
+      ],
     );
   }
 }
 
-class _CalendarPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = AppColors.cardBorder
-          ..strokeWidth = 1.0
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round;
+class _PhotoSlot extends StatelessWidget {
+  const _PhotoSlot({required this.onTap});
+  final VoidCallback onTap;
 
-    // Outer rectangle
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 2, size.width, size.height - 2),
-        const Radius.circular(3),
-      ),
-      paint,
-    );
-    // Top bar
-    canvas.drawLine(
-      Offset(0, size.height * 0.4),
-      Offset(size.width, size.height * 0.4),
-      paint,
-    );
-    // Left tab
-    canvas.drawLine(
-      Offset(size.width * 0.3, 0),
-      Offset(size.width * 0.3, 5),
-      paint..strokeWidth = 1.5,
-    );
-    // Right tab
-    canvas.drawLine(
-      Offset(size.width * 0.7, 0),
-      Offset(size.width * 0.7, 5),
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_CalendarPainter old) => false;
-}
-
-// ─── Add photos ───────────────────────────────────────────────────────────────
-
-class _AddPhotosButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        // TODO: open image picker
-      },
-      child: Container(
-        width: double.infinity,
-        height: 60,
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.divider, width: 2),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          '+',
-          style: AppTextStyles.sectionHeading.copyWith(
-            fontSize: 24,
-            color: AppColors.cardBorder,
-            height: 1,
+      onTap: onTap,
+      child: SizedBox(
+        width: 83,
+        height: 80,
+        child: CustomPaint(
+          painter: _DashedBorderPainter(),
+          child: Center(
+            child: Text(
+              '+',
+              style: AppTextStyles.headerTitle.copyWith(
+                fontSize: 24,
+                color: const Color(0xFF96A8C2),
+                fontWeight: FontWeight.w500,
+                height: 1,
+              ),
+            ),
           ),
         ),
       ),
@@ -590,44 +595,86 @@ class _AddPhotosButton extends StatelessWidget {
   }
 }
 
+class _DashedBorderPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    const dashLen = 6.0;
+    const gapLen = 7.0;
+    const radius = 16.0;
+    const sw = 1.0;
+
+    final paint = Paint()
+      ..color = const Color(0xFF96A8C2)
+      ..strokeWidth = sw
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.butt;
+
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(sw / 2, sw / 2, size.width - sw, size.height - sw),
+      const Radius.circular(radius),
+    );
+
+    final path = Path()..addRRect(rrect);
+    for (final metric in path.computeMetrics()) {
+      double dist = 0;
+      bool draw = true;
+      while (dist < metric.length) {
+        final len = draw ? dashLen : gapLen;
+        if (draw) {
+          canvas.drawPath(metric.extractPath(dist, dist + len), paint);
+        }
+        dist += len;
+        draw = !draw;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter old) => false;
+}
+
 // ─── Notes textarea ───────────────────────────────────────────────────────────
 
 class _NotesField extends StatelessWidget {
-  const _NotesField({required this.controller});
+  const _NotesField({required this.controller, required this.focusNode});
   final TextEditingController controller;
+  final FocusNode focusNode;
 
   @override
   Widget build(BuildContext context) {
+    const border = OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(16)),
+      borderSide: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+    );
+
     return TextField(
       controller: controller,
+      focusNode: focusNode,
       maxLines: 5,
-      style: AppTextStyles.bodyRegular14,
+      style: AppTextStyles.bodyRegular14.copyWith(
+        color: AppColors.textPrimary,
+        fontSize: 14,
+      ),
       decoration: InputDecoration(
         hintText: 'Caught up at the usual spot...',
         hintStyle: AppTextStyles.bodyRegular14.copyWith(
-          color: AppColors.cardBorder,
+          color: const Color(0xFF96A8C2),
+          fontSize: 14,
         ),
-        filled: true,
-        fillColor: AppColors.white,
-        contentPadding: const EdgeInsets.all(16),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.divider),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.divider),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.textSecondary),
+        filled: false,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: border,
+        enabledBorder: border,
+        focusedBorder: border.copyWith(
+          borderSide: const BorderSide(color: Color(0xFF96A8C2), width: 1),
         ),
       ),
     );
   }
 }
 
-// ─── Log moment button ────────────────────────────────────────────────────────
+// ─── Log button ───────────────────────────────────────────────────────────────
 
 class _LogButton extends StatelessWidget {
   const _LogButton({required this.onTap});
@@ -670,11 +717,10 @@ class _LogButton extends StatelessWidget {
 class _PlusPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = AppColors.white
-          ..strokeWidth = 1.5
-          ..strokeCap = StrokeCap.round;
+    final paint = Paint()
+      ..color = AppColors.white
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
     final cx = size.width / 2;
     final cy = size.height / 2;
     const arm = 5.83;

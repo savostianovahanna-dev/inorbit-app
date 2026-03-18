@@ -11,6 +11,8 @@ class AddFriendParams {
   final String? avatarFilePath;
   final int? planetIndex;
   final DateTime? birthday;
+  final bool remindBirthday;
+  final String? notes;
   final String orbitTier;
   final int frequencyDays;
   final DateTime? lastConnectedAt;
@@ -20,6 +22,8 @@ class AddFriendParams {
     this.avatarFilePath,
     this.planetIndex,
     this.birthday,
+    this.remindBirthday = true,
+    this.notes,
     required this.orbitTier,
     required this.frequencyDays,
     this.lastConnectedAt,
@@ -55,6 +59,8 @@ class AddFriendUseCase {
       avatarPath: avatarPath,
       planetIndex: params.planetIndex,
       birthday: params.birthday,
+      remindBirthday: params.remindBirthday,
+      notes: params.notes,
       orbitTier: params.orbitTier,
       frequencyDays: params.frequencyDays,
       lastConnectedAt: params.lastConnectedAt,

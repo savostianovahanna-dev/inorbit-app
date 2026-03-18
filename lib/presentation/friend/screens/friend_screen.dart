@@ -112,10 +112,7 @@ class FriendScreen extends StatelessWidget {
                   bottom: bottomPad + 16,
                   left: 16,
                   right: 16,
-                  child: _LogMomentButton(
-                    friendName: friend.name,
-                    friendId: friend.id,
-                  ),
+                  child: _LogMomentButton(friend: friend),
                 ),
               ],
             );
@@ -127,13 +124,9 @@ class FriendScreen extends StatelessWidget {
 }
 
 class _LogMomentButton extends StatelessWidget {
-  const _LogMomentButton({
-    required this.friendName,
-    required this.friendId,
-  });
+  const _LogMomentButton({required this.friend});
 
-  final String friendName;
-  final String friendId;
+  final Friend friend;
 
   @override
   Widget build(BuildContext context) {
@@ -141,10 +134,7 @@ class _LogMomentButton extends StatelessWidget {
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => LogMomentScreen(
-            friendName: friendName,
-            friendId: friendId,
-          ),
+          builder: (_) => LogMomentScreen(friend: friend),
         ),
       ),
       child: Container(

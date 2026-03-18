@@ -123,11 +123,11 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Planet image takes priority; fall back to initials.
-    if (friend.planetIndex != null) {
+    // Custom photo (local file) takes top priority.
+    if (friend.avatarPath != null) {
       return ClipOval(
-        child: Image.asset(
-          'assets/images/planets/planet_${friend.planetIndex}.png',
+        child: Image.file(
+          File(friend.avatarPath!),
           width: 48,
           height: 48,
           fit: BoxFit.cover,
@@ -136,11 +136,11 @@ class _Avatar extends StatelessWidget {
       );
     }
 
-    // Local file avatar (from image_picker).
-    if (friend.avatarPath != null) {
+    // Planet image — index is 0-based, filenames are 1-based (planet_1…planet_8).
+    if (friend.planetIndex != null) {
       return ClipOval(
-        child: Image.file(
-          File(friend.avatarPath!),
+        child: Image.asset(
+          'assets/images/planets/planet_${friend.planetIndex! + 1}.png',
           width: 48,
           height: 48,
           fit: BoxFit.cover,

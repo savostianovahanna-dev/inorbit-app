@@ -5,6 +5,8 @@ class Friend {
   final String? avatarUrl;
   final int? planetIndex;
   final DateTime? birthday;
+  final bool remindBirthday;
+  final String? notes;
   final String orbitTier;
   final int frequencyDays;
   final DateTime? lastConnectedAt;
@@ -16,6 +18,8 @@ class Friend {
     this.avatarPath,
     this.planetIndex,
     this.birthday,
+    this.remindBirthday = true,
+    this.notes,
     this.avatarUrl,
     required this.orbitTier,
     required this.frequencyDays,

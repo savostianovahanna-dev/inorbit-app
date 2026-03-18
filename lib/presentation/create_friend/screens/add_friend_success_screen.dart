@@ -26,10 +26,18 @@ class AddFriendSuccessScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 73),
 
-            // ── Photo / avatar card  (361×282, borderRadius 32) ──────────────
+            // ── Onboarding image card (above text) ───────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _ProfileCard(firstName: _firstName),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(32),
+                child: Image.asset(
+                  'assets/onboarding1.png',
+                  width: double.infinity,
+                  height: 282,
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
 
             const SizedBox(height: 36),
@@ -61,7 +69,8 @@ class AddFriendSuccessScreen extends StatelessWidget {
 
                   // "Go to the orbit" button
                   _GoToOrbitButton(
-                    onTap: () => Navigator.of(context).popUntil((r) => r.isFirst),
+                    onTap: () =>
+                        Navigator.of(context).popUntil((r) => r.isFirst),
                   ),
                 ],
               ),
@@ -71,111 +80,6 @@ class AddFriendSuccessScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-// ─── Profile card ─────────────────────────────────────────────────────────────
-
-class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.firstName});
-
-  final String firstName;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 282,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.avatarFill, AppColors.orbitDark],
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // ── Decorative orbit rings ────────────────────────────────────────
-          const Positioned.fill(child: _OrbitRingsPainterWidget()),
-
-          // ── Centered avatar circle with first initial ─────────────────────
-          Center(
-            child: Container(
-              width: 88,
-              height: 88,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.18),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.35),
-                  width: 1.5,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  firstName.isNotEmpty ? firstName[0].toUpperCase() : '?',
-                  style: const TextStyle(
-                    fontFamily: 'DM Sans',
-                    fontSize: 38,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                    height: 1,
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // ── Subtle bottom gradient overlay ────────────────────────────────
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 80,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.30),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _OrbitRingsPainterWidget extends StatelessWidget {
-  const _OrbitRingsPainterWidget();
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(painter: _OrbitRingsPainter());
-  }
-}
-
-class _OrbitRingsPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.10)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-
-    for (final r in [60.0, 110.0, 165.0, 225.0]) {
-      canvas.drawCircle(center, r, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_OrbitRingsPainter old) => false;
 }
 
 // ─── "Go to the orbit" button ─────────────────────────────────────────────────

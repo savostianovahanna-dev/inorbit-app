@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -36,6 +38,39 @@ class ProfileHero extends StatelessWidget {
     return '$days days ago';
   }
 
+  Widget _buildBackground() {
+    if (friend.avatarPath != null && friend.avatarPath!.isNotEmpty) {
+      return Image.file(
+        File(friend.avatarPath!),
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    }
+    if (friend.avatarUrl != null && friend.avatarUrl!.isNotEmpty) {
+      return Image.network(
+        friend.avatarUrl!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    }
+    if (friend.planetIndex != null) {
+      return Image.asset(
+        'assets/images/planets/planet_${friend.planetIndex! + 1}.png',
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    }
+    return Image.asset(
+      'assets/onboarding1.png',
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isOverdue = friend.isOverdue;
@@ -49,16 +84,8 @@ class ProfileHero extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Layer 1: background placeholder (simulates friend's photo)
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF4A6275), Color(0xFF1E2D3D)],
-                ),
-              ),
-            ),
+            // Layer 1: friend photo / planet / default onboarding image
+            Positioned.fill(child: _buildBackground()),
 
             // Layer 2: dark gradient overlay (matches Figma 30%–68% stop)
             Container(
@@ -72,76 +99,84 @@ class ProfileHero extends StatelessWidget {
               ),
             ),
 
-            // Layer 3: text content positioned over gradient
+            // Layer 3: text content — name, birthday, last contact
             Positioned(
-              top: 149,
+              bottom: 20,
               left: 20,
               right: 20,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(friend.name, style: AppTextStyles.friendName),
-                  const SizedBox(width: 8),
-                  if (_badge.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 13,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.tagBg.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: Text(
-                        _badge,
-                        style: AppTextStyles.tagLabel.copyWith(
-                          fontSize: 12,
-                          color: AppColors.white,
+                  // Name + orbit badge
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          friend.name,
+                          style: AppTextStyles.friendName,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    ),
-                ],
-              ),
-            ),
-
-            // Birthday text (only shown when set)
-            if (birthday.isNotEmpty)
-              Positioned(
-                top: 186,
-                left: 19,
-                child: Text(
-                  birthday,
-                  style: AppTextStyles.bodyRegular14.copyWith(
-                    color: AppColors.white,
+                      if (_badge.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 13,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.tagBg.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: Text(
+                            _badge,
+                            style: AppTextStyles.tagLabel.copyWith(
+                              fontSize: 12,
+                              color: AppColors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                ),
-              ),
-
-            // Overdue indicator row
-            if (isOverdue)
-              Positioned(
-                top: birthday.isNotEmpty ? 211 : 186,
-                left: 20,
-                child: Row(
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.orange,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
+                  // Birthday (only when set)
+                  if (birthday.isNotEmpty) ...[
+                    const SizedBox(height: 4),
                     Text(
-                      _overdueText,
+                      birthday,
                       style: AppTextStyles.bodyRegular14.copyWith(
                         color: AppColors.white,
                       ),
                     ),
                   ],
-                ),
+                  // Last contact — always shown
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (isOverdue) ...[
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.orange,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        _overdueText,
+                        style: AppTextStyles.bodyRegular14.copyWith(
+                          color: AppColors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
+            ),
           ],
         ),
       ),
