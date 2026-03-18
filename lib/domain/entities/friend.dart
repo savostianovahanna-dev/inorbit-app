@@ -2,6 +2,7 @@ class Friend {
   final String id;
   final String name;
   final String? avatarPath;
+  final String? avatarUrl;
   final int? planetIndex;
   final DateTime? birthday;
   final String orbitTier;
@@ -15,6 +16,7 @@ class Friend {
     this.avatarPath,
     this.planetIndex,
     this.birthday,
+    this.avatarUrl,
     required this.orbitTier,
     required this.frequencyDays,
     this.lastConnectedAt,

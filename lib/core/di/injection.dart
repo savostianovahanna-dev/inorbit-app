@@ -1,4 +1,7 @@
 import 'package:get_it/get_it.dart';
+import 'package:inorbit/bloc/add_friend/add_friend_bloc.dart';
+import 'package:inorbit/core/services/cloudinary_service.dart';
+import 'package:inorbit/domain/usecases/add_friend.use_case.dart';
 
 import '../../data/local/app_database.dart';
 import '../../data/local/daos/friends_dao.dart';
@@ -15,7 +18,7 @@ import '../../data/repositories/synced_friend_repository.dart';
 import '../../data/repositories/synced_moment_repository.dart';
 import '../../domain/repositories/friend_repository.dart';
 import '../../domain/repositories/moment_repository.dart';
-import '../../domain/usecases/get_stats.dart';
+import '../../domain/usecases/get_stats.use_case.dart';
 import '../../domain/usecases/sync_data.dart';
 import '../../domain/usecases/watch_friends.dart';
 import '../../bloc/home/home_bloc.dart';
@@ -63,13 +66,13 @@ void setupDependencies() {
   getIt.registerSingleton<WatchFriends>(
     WatchFriends(getIt<FriendRepository>()),
   );
-  getIt.registerSingleton<GetStats>(
-    GetStats(getIt<FriendRepository>(), getIt<MomentRepository>()),
+  getIt.registerSingleton<GetStatsUseCase>(
+    GetStatsUseCase(getIt<FriendRepository>(), getIt<MomentRepository>()),
   );
 
   // BLoCs — factory so each screen gets a fresh instance with its own state
   getIt.registerFactory<HomeBloc>(() => HomeBloc(getIt<WatchFriends>()));
-  getIt.registerFactory<StatsBloc>(() => StatsBloc(getIt<GetStats>()));
+  getIt.registerFactory<StatsBloc>(() => StatsBloc(getIt<GetStatsUseCase>()));
 }
 
 /// Called once after successful login to wire up Firestore + synced repos.
@@ -120,10 +123,22 @@ void initRemoteRepositories(String userId) {
     WatchFriends(getIt<FriendRepository>()),
   );
 
-  if (getIt.isRegistered<GetStats>()) {
-    getIt.unregister<GetStats>();
+  if (getIt.isRegistered<GetStatsUseCase>()) {
+    getIt.unregister<GetStatsUseCase>();
   }
-  getIt.registerSingleton<GetStats>(
-    GetStats(getIt<FriendRepository>(), getIt<MomentRepository>()),
+  getIt.registerSingleton<GetStatsUseCase>(
+    GetStatsUseCase(getIt<FriendRepository>(), getIt<MomentRepository>()),
+  );
+
+  getIt.registerLazySingleton<CloudinaryService>(() => CloudinaryService());
+
+  // UseCase
+  getIt.registerSingleton<AddFriendUseCase>(
+    AddFriendUseCase(getIt<FriendRepository>(), getIt<CloudinaryService>()),
+  );
+
+  // BLoC
+  getIt.registerFactory<AddFriendBloc>(
+    () => AddFriendBloc(getIt<AddFriendUseCase>()),
   );
 }

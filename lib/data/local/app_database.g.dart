@@ -38,6 +38,17 @@ class $FriendsTableTable extends FriendsTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _avatarUrlMeta = const VerificationMeta(
+    'avatarUrl',
+  );
+  @override
+  late final GeneratedColumn<String> avatarUrl = GeneratedColumn<String>(
+    'avatar_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _planetIndexMeta = const VerificationMeta(
     'planetIndex',
   );
@@ -119,6 +130,7 @@ class $FriendsTableTable extends FriendsTable
     id,
     name,
     avatarPath,
+    avatarUrl,
     planetIndex,
     birthday,
     orbitTier,
@@ -156,6 +168,12 @@ class $FriendsTableTable extends FriendsTable
       context.handle(
         _avatarPathMeta,
         avatarPath.isAcceptableOrUnknown(data['avatar_path']!, _avatarPathMeta),
+      );
+    }
+    if (data.containsKey('avatar_url')) {
+      context.handle(
+        _avatarUrlMeta,
+        avatarUrl.isAcceptableOrUnknown(data['avatar_url']!, _avatarUrlMeta),
       );
     }
     if (data.containsKey('planet_index')) {
@@ -238,6 +256,10 @@ class $FriendsTableTable extends FriendsTable
         DriftSqlType.string,
         data['${effectivePrefix}avatar_path'],
       ),
+      avatarUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}avatar_url'],
+      ),
       planetIndex: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}planet_index'],
@@ -283,6 +305,7 @@ class FriendsTableData extends DataClass
   final String id;
   final String name;
   final String? avatarPath;
+  final String? avatarUrl;
   final int? planetIndex;
   final DateTime? birthday;
   final String orbitTier;
@@ -294,6 +317,7 @@ class FriendsTableData extends DataClass
     required this.id,
     required this.name,
     this.avatarPath,
+    this.avatarUrl,
     this.planetIndex,
     this.birthday,
     required this.orbitTier,
@@ -309,6 +333,9 @@ class FriendsTableData extends DataClass
     map['name'] = Variable<String>(name);
     if (!nullToAbsent || avatarPath != null) {
       map['avatar_path'] = Variable<String>(avatarPath);
+    }
+    if (!nullToAbsent || avatarUrl != null) {
+      map['avatar_url'] = Variable<String>(avatarUrl);
     }
     if (!nullToAbsent || planetIndex != null) {
       map['planet_index'] = Variable<int>(planetIndex);
@@ -336,6 +363,10 @@ class FriendsTableData extends DataClass
           avatarPath == null && nullToAbsent
               ? const Value.absent()
               : Value(avatarPath),
+      avatarUrl:
+          avatarUrl == null && nullToAbsent
+              ? const Value.absent()
+              : Value(avatarUrl),
       planetIndex:
           planetIndex == null && nullToAbsent
               ? const Value.absent()
@@ -365,6 +396,7 @@ class FriendsTableData extends DataClass
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       avatarPath: serializer.fromJson<String?>(json['avatarPath']),
+      avatarUrl: serializer.fromJson<String?>(json['avatarUrl']),
       planetIndex: serializer.fromJson<int?>(json['planetIndex']),
       birthday: serializer.fromJson<DateTime?>(json['birthday']),
       orbitTier: serializer.fromJson<String>(json['orbitTier']),
@@ -381,6 +413,7 @@ class FriendsTableData extends DataClass
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'avatarPath': serializer.toJson<String?>(avatarPath),
+      'avatarUrl': serializer.toJson<String?>(avatarUrl),
       'planetIndex': serializer.toJson<int?>(planetIndex),
       'birthday': serializer.toJson<DateTime?>(birthday),
       'orbitTier': serializer.toJson<String>(orbitTier),
@@ -395,6 +428,7 @@ class FriendsTableData extends DataClass
     String? id,
     String? name,
     Value<String?> avatarPath = const Value.absent(),
+    Value<String?> avatarUrl = const Value.absent(),
     Value<int?> planetIndex = const Value.absent(),
     Value<DateTime?> birthday = const Value.absent(),
     String? orbitTier,
@@ -406,6 +440,7 @@ class FriendsTableData extends DataClass
     id: id ?? this.id,
     name: name ?? this.name,
     avatarPath: avatarPath.present ? avatarPath.value : this.avatarPath,
+    avatarUrl: avatarUrl.present ? avatarUrl.value : this.avatarUrl,
     planetIndex: planetIndex.present ? planetIndex.value : this.planetIndex,
     birthday: birthday.present ? birthday.value : this.birthday,
     orbitTier: orbitTier ?? this.orbitTier,
@@ -421,6 +456,7 @@ class FriendsTableData extends DataClass
       name: data.name.present ? data.name.value : this.name,
       avatarPath:
           data.avatarPath.present ? data.avatarPath.value : this.avatarPath,
+      avatarUrl: data.avatarUrl.present ? data.avatarUrl.value : this.avatarUrl,
       planetIndex:
           data.planetIndex.present ? data.planetIndex.value : this.planetIndex,
       birthday: data.birthday.present ? data.birthday.value : this.birthday,
@@ -444,6 +480,7 @@ class FriendsTableData extends DataClass
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('avatarPath: $avatarPath, ')
+          ..write('avatarUrl: $avatarUrl, ')
           ..write('planetIndex: $planetIndex, ')
           ..write('birthday: $birthday, ')
           ..write('orbitTier: $orbitTier, ')
@@ -460,6 +497,7 @@ class FriendsTableData extends DataClass
     id,
     name,
     avatarPath,
+    avatarUrl,
     planetIndex,
     birthday,
     orbitTier,
@@ -475,6 +513,7 @@ class FriendsTableData extends DataClass
           other.id == this.id &&
           other.name == this.name &&
           other.avatarPath == this.avatarPath &&
+          other.avatarUrl == this.avatarUrl &&
           other.planetIndex == this.planetIndex &&
           other.birthday == this.birthday &&
           other.orbitTier == this.orbitTier &&
@@ -488,6 +527,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
   final Value<String> id;
   final Value<String> name;
   final Value<String?> avatarPath;
+  final Value<String?> avatarUrl;
   final Value<int?> planetIndex;
   final Value<DateTime?> birthday;
   final Value<String> orbitTier;
@@ -500,6 +540,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.avatarPath = const Value.absent(),
+    this.avatarUrl = const Value.absent(),
     this.planetIndex = const Value.absent(),
     this.birthday = const Value.absent(),
     this.orbitTier = const Value.absent(),
@@ -513,6 +554,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     required String id,
     required String name,
     this.avatarPath = const Value.absent(),
+    this.avatarUrl = const Value.absent(),
     this.planetIndex = const Value.absent(),
     this.birthday = const Value.absent(),
     required String orbitTier,
@@ -530,6 +572,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? avatarPath,
+    Expression<String>? avatarUrl,
     Expression<int>? planetIndex,
     Expression<DateTime>? birthday,
     Expression<String>? orbitTier,
@@ -543,6 +586,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (avatarPath != null) 'avatar_path': avatarPath,
+      if (avatarUrl != null) 'avatar_url': avatarUrl,
       if (planetIndex != null) 'planet_index': planetIndex,
       if (birthday != null) 'birthday': birthday,
       if (orbitTier != null) 'orbit_tier': orbitTier,
@@ -558,6 +602,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     Value<String>? id,
     Value<String>? name,
     Value<String?>? avatarPath,
+    Value<String?>? avatarUrl,
     Value<int?>? planetIndex,
     Value<DateTime?>? birthday,
     Value<String>? orbitTier,
@@ -571,6 +616,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
       id: id ?? this.id,
       name: name ?? this.name,
       avatarPath: avatarPath ?? this.avatarPath,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       planetIndex: planetIndex ?? this.planetIndex,
       birthday: birthday ?? this.birthday,
       orbitTier: orbitTier ?? this.orbitTier,
@@ -593,6 +639,9 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     }
     if (avatarPath.present) {
       map['avatar_path'] = Variable<String>(avatarPath.value);
+    }
+    if (avatarUrl.present) {
+      map['avatar_url'] = Variable<String>(avatarUrl.value);
     }
     if (planetIndex.present) {
       map['planet_index'] = Variable<int>(planetIndex.value);
@@ -627,6 +676,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('avatarPath: $avatarPath, ')
+          ..write('avatarUrl: $avatarUrl, ')
           ..write('planetIndex: $planetIndex, ')
           ..write('birthday: $birthday, ')
           ..write('orbitTier: $orbitTier, ')
@@ -1202,6 +1252,7 @@ typedef $$FriendsTableTableCreateCompanionBuilder =
       required String id,
       required String name,
       Value<String?> avatarPath,
+      Value<String?> avatarUrl,
       Value<int?> planetIndex,
       Value<DateTime?> birthday,
       required String orbitTier,
@@ -1216,6 +1267,7 @@ typedef $$FriendsTableTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> name,
       Value<String?> avatarPath,
+      Value<String?> avatarUrl,
       Value<int?> planetIndex,
       Value<DateTime?> birthday,
       Value<String> orbitTier,
@@ -1274,6 +1326,11 @@ class $$FriendsTableTableFilterComposer
 
   ColumnFilters<String> get avatarPath => $composableBuilder(
     column: $table.avatarPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get avatarUrl => $composableBuilder(
+    column: $table.avatarUrl,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1362,6 +1419,11 @@ class $$FriendsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get avatarUrl => $composableBuilder(
+    column: $table.avatarUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get planetIndex => $composableBuilder(
     column: $table.planetIndex,
     builder: (column) => ColumnOrderings(column),
@@ -1417,6 +1479,9 @@ class $$FriendsTableTableAnnotationComposer
     column: $table.avatarPath,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get avatarUrl =>
+      $composableBuilder(column: $table.avatarUrl, builder: (column) => column);
 
   GeneratedColumn<int> get planetIndex => $composableBuilder(
     column: $table.planetIndex,
@@ -1503,6 +1568,7 @@ class $$FriendsTableTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String?> avatarPath = const Value.absent(),
+                Value<String?> avatarUrl = const Value.absent(),
                 Value<int?> planetIndex = const Value.absent(),
                 Value<DateTime?> birthday = const Value.absent(),
                 Value<String> orbitTier = const Value.absent(),
@@ -1515,6 +1581,7 @@ class $$FriendsTableTableTableManager
                 id: id,
                 name: name,
                 avatarPath: avatarPath,
+                avatarUrl: avatarUrl,
                 planetIndex: planetIndex,
                 birthday: birthday,
                 orbitTier: orbitTier,
@@ -1529,6 +1596,7 @@ class $$FriendsTableTableTableManager
                 required String id,
                 required String name,
                 Value<String?> avatarPath = const Value.absent(),
+                Value<String?> avatarUrl = const Value.absent(),
                 Value<int?> planetIndex = const Value.absent(),
                 Value<DateTime?> birthday = const Value.absent(),
                 required String orbitTier,
@@ -1541,6 +1609,7 @@ class $$FriendsTableTableTableManager
                 id: id,
                 name: name,
                 avatarPath: avatarPath,
+                avatarUrl: avatarUrl,
                 planetIndex: planetIndex,
                 birthday: birthday,
                 orbitTier: orbitTier,
