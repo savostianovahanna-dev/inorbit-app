@@ -1,20 +1,21 @@
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../domain/entities/friend.dart';
 import '../../../domain/entities/moment.dart';
-import '../../../domain/repositories/moment_repository.dart';
+import '../../../domain/usecases/add_moment_use_case.dart';
+import '../../../shared/widgets/dark_button.dart';
+import '../../../shared/widgets/multiline_text_field.dart';
 
 /// "Log a moment" screen — Figma node 173-7231.
 class LogMomentScreen extends StatefulWidget {
-  const LogMomentScreen({
-    super.key,
-    required this.friend,
-  });
+  const LogMomentScreen({super.key, required this.friend});
 
   final Friend friend;
 
@@ -25,9 +26,13 @@ class LogMomentScreen extends StatefulWidget {
 class _LogMomentScreenState extends State<LogMomentScreen> {
   _ActivityType _selectedActivity = _ActivityType.coffee;
   _WhenOption _when = _WhenOption.today;
+  DateTime? _customDate;
+  bool _saving = false;
   final _noteController = TextEditingController();
   final _scrollController = ScrollController();
   final _notesFocusNode = FocusNode();
+  final _notesKey = GlobalKey();
+  final List<String> _photos = [];
 
   @override
   void initState() {
@@ -37,10 +42,12 @@ class _LogMomentScreenState extends State<LogMomentScreen> {
 
   void _onNotesFocusChanged() {
     if (_notesFocusNode.hasFocus) {
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
+      Future.delayed(const Duration(milliseconds: 400), () {
+        final ctx = _notesKey.currentContext;
+        if (ctx != null) {
+          Scrollable.ensureVisible(
+            ctx,
+            alignment: 0.0,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
@@ -58,29 +65,113 @@ class _LogMomentScreenState extends State<LogMomentScreen> {
     super.dispose();
   }
 
-  Future<void> _logMoment() async {
-    final date = switch (_when) {
-      _WhenOption.today => DateTime.now(),
-      _WhenOption.yesterday =>
-        DateTime.now().subtract(const Duration(days: 1)),
-      _WhenOption.custom => DateTime.now(),
-    };
+  void _showWhenDatePicker() {
+    FocusScope.of(context).unfocus();
+    final now = DateTime.now();
+    var temp = _customDate ?? now;
 
-    final moment = Moment(
-      id: const Uuid().v4(),
-      friendId: widget.friend.id,
-      type: _selectedActivity.name,
-      date: date,
-      note: _noteController.text.trim().isEmpty
-          ? null
-          : _noteController.text.trim(),
-      photoPaths: const [],
-      createdAt: DateTime.now(),
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: AppColors.divider, width: 0.5),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(ctx),
+                    child: Text(
+                      'Cancel',
+                      style: AppTextStyles.bodyRegular14.copyWith(
+                        color: AppColors.cardBorder,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  Text('When?', style: AppTextStyles.headerTitle),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _customDate = temp;
+                        _when = _WhenOption.custom;
+                      });
+                      Navigator.pop(ctx);
+                    },
+                    child: Text(
+                      'Done',
+                      style: AppTextStyles.headerTitle.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 216,
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.date,
+                initialDateTime: temp,
+                maximumDate: now,
+                minimumYear: 1900,
+                onDateTimeChanged: (d) => temp = d,
+              ),
+            ),
+            SizedBox(height: MediaQuery.of(ctx).padding.bottom),
+          ],
+        ),
+      ),
     );
-
-    await getIt<MomentRepository>().addMoment(moment);
-    if (mounted) Navigator.pop(context);
   }
+
+  Future<void> _logMoment() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+
+    try {
+      final date = switch (_when) {
+        _WhenOption.today => DateTime.now(),
+        _WhenOption.yesterday =>
+          DateTime.now().subtract(const Duration(days: 1)),
+        _WhenOption.custom => _customDate ?? DateTime.now(),
+      };
+
+      final moment = Moment(
+        id: const Uuid().v4(),
+        friendId: widget.friend.id,
+        type: _selectedActivity.name,
+        date: date,
+        note: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
+        photoPaths: List.unmodifiable(_photos),
+        createdAt: DateTime.now(),
+      );
+
+      await getIt<AddMomentUseCase>().call(moment);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _addPhoto(String path) => setState(() => _photos.add(path));
 
   @override
   Widget build(BuildContext context) {
@@ -88,64 +179,98 @@ class _LogMomentScreenState extends State<LogMomentScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            SingleChildScrollView(
-              controller: _scrollController,
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 100 + bottomPad),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _LogHeader(),
-                  const SizedBox(height: 20),
+      resizeToAvoidBottomInset: true,
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.opaque,
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _LogHeader(),
+                      const SizedBox(height: 20),
 
-                  _FriendMiniCard(friend: widget.friend),
-                  const SizedBox(height: 20),
+                      _FriendMiniCard(friend: widget.friend),
+                      const SizedBox(height: 20),
 
-                  Text(
-                    'How did you connect?',
-                    style: AppTextStyles.sectionHeading,
+                      Text(
+                        'How did you connect?',
+                        style: AppTextStyles.sectionHeading,
+                      ),
+                      const SizedBox(height: 8),
+                      _ActivityGrid(
+                        selected: _selectedActivity,
+                        onSelect: (t) =>
+                            setState(() => _selectedActivity = t),
+                      ),
+                      const SizedBox(height: 20),
+
+                      Text('When?', style: AppTextStyles.sectionHeading),
+                      const SizedBox(height: 8),
+                      _WhenRow(
+                        selected: _when,
+                        customDate: _customDate,
+                        onSelect: (w) => setState(() => _when = w),
+                        onPickDate: _showWhenDatePicker,
+                      ),
+                      const SizedBox(height: 20),
+
+                      Text('Add photos', style: AppTextStyles.sectionHeading),
+                      const SizedBox(height: 8),
+                      _PhotosRow(
+                        photos: _photos,
+                        onPhotoAdded: _addPhoto,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Keyed so Scrollable.ensureVisible can scroll to it
+                      SizedBox(
+                        key: _notesKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'What happened?',
+                              style: AppTextStyles.sectionHeading,
+                            ),
+                            const SizedBox(height: 8),
+                            MultilineTextField(
+                              controller: _noteController,
+                              focusNode: _notesFocusNode,
+                              hintText: 'Caught up at the usual spot...',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  _ActivityGrid(
-                    selected: _selectedActivity,
-                    onSelect: (t) => setState(() => _selectedActivity = t),
-                  ),
-                  const SizedBox(height: 20),
-
-                  Text('When?', style: AppTextStyles.sectionHeading),
-                  const SizedBox(height: 8),
-                  _WhenRow(
-                    selected: _when,
-                    onSelect: (w) => setState(() => _when = w),
-                  ),
-                  const SizedBox(height: 20),
-
-                  Text('Add photos', style: AppTextStyles.sectionHeading),
-                  const SizedBox(height: 8),
-                  const _PhotosRow(),
-                  const SizedBox(height: 20),
-
-                  Text('What happened?', style: AppTextStyles.sectionHeading),
-                  const SizedBox(height: 8),
-                  _NotesField(
-                    controller: _noteController,
-                    focusNode: _notesFocusNode,
-                  ),
-                ],
+                ),
               ),
-            ),
 
-            Positioned(
-              bottom: bottomPad + 16,
-              left: 16,
-              right: 16,
-              child: _LogButton(onTap: _logMoment),
-            ),
-          ],
+              // Always sits at true bottom; rises above keyboard automatically
+              Padding(
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomPad),
+                child: DarkButton(
+                  label: 'Log moment',
+                  onTap: _saving ? null : _logMoment,
+                  saving: _saving,
+                  leadingIcon: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CustomPaint(painter: _PlusPainter()),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -339,8 +464,6 @@ class _ActivityChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hPadding = isSelected ? 24.0 : 16.0;
-
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -370,24 +493,18 @@ class _ActivityChip extends StatelessWidget {
                 ),
               ],
               Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: hPadding,
-                  vertical: 12,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
                 ),
-                child: Column(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SizedBox(
-                      width: 35,
-                      height: 42,
-                      child: Center(
-                        child: Text(
-                          type.emoji,
-                          style: const TextStyle(fontSize: 28, height: 1),
-                        ),
-                      ),
+                    Text(
+                      type.emoji,
+                      style: const TextStyle(fontSize: 22, height: 1),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(width: 6),
                     Text(
                       type.label,
                       style: isSelected
@@ -417,9 +534,16 @@ class _ActivityChip extends StatelessWidget {
 enum _WhenOption { today, yesterday, custom }
 
 class _WhenRow extends StatelessWidget {
-  const _WhenRow({required this.selected, required this.onSelect});
+  const _WhenRow({
+    required this.selected,
+    required this.onSelect,
+    required this.onPickDate,
+    this.customDate,
+  });
   final _WhenOption selected;
   final ValueChanged<_WhenOption> onSelect;
+  final VoidCallback onPickDate;
+  final DateTime? customDate;
 
   @override
   Widget build(BuildContext context) {
@@ -444,7 +568,8 @@ class _WhenRow extends StatelessWidget {
         Expanded(
           child: _DateInputChip(
             isSelected: selected == _WhenOption.custom,
-            onTap: () => onSelect(_WhenOption.custom),
+            date: customDate,
+            onTap: onPickDate,
           ),
         ),
       ],
@@ -469,9 +594,9 @@ class _WhenChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        height: 60,
+        height: 44,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected
                 ? const Color(0xFF334155)
@@ -480,7 +605,7 @@ class _WhenChip extends StatelessWidget {
           ),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(13),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -498,6 +623,7 @@ class _WhenChip extends StatelessWidget {
                     color: isSelected
                         ? Colors.white
                         : const Color(0xFF334155),
+                    fontSize: 14,
                   ),
                 ),
               ),
@@ -510,38 +636,77 @@ class _WhenChip extends StatelessWidget {
 }
 
 class _DateInputChip extends StatelessWidget {
-  const _DateInputChip({required this.isSelected, required this.onTap});
+  const _DateInputChip({
+    required this.isSelected,
+    required this.onTap,
+    this.date,
+  });
   final bool isSelected;
   final VoidCallback onTap;
+  final DateTime? date;
+
+  /// Shows the picked date as DD/MM, or the placeholder when nothing chosen.
+  String get _label {
+    if (date == null) return 'DD/MM';
+    final d = date!.day.toString().padLeft(2, '0');
+    final m = date!.month.toString().padLeft(2, '0');
+    return '$d/$m';
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        height: 60,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: 44,
         decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF334155)
+                : const Color(0xFFE2E8F0),
+            width: 1,
+          ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'DD/MM',
-              style: AppTextStyles.bodyRegular14.copyWith(
-                color: const Color(0xFF96A8C2),
-                fontSize: 14,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(13),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (isSelected) ...[
+                Image.asset(
+                  'assets/images/planets/planet_6.png',
+                  fit: BoxFit.cover,
+                ),
+                const ColoredBox(color: Color(0x8C000000)),
+              ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _label,
+                      style: AppTextStyles.bodyRegular14.copyWith(
+                        fontSize: 14,
+                        color: isSelected
+                            ? Colors.white
+                            : (date != null
+                                ? AppColors.textPrimary
+                                : const Color(0xFF96A8C2)),
+                      ),
+                    ),
+                    Image.asset(
+                      'assets/images/calendar.png',
+                      width: 19,
+                      height: 20,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Image.asset(
-              'assets/images/calendar.png',
-              width: 19,
-              height: 20,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -550,24 +715,110 @@ class _DateInputChip extends StatelessWidget {
 
 // ─── Add photos ───────────────────────────────────────────────────────────────
 
-class _PhotosRow extends StatelessWidget {
-  const _PhotosRow();
+class _PhotosRow extends StatefulWidget {
+  const _PhotosRow({required this.photos, required this.onPhotoAdded});
+  final List<String> photos;
+  final ValueChanged<String> onPhotoAdded;
+
+  @override
+  State<_PhotosRow> createState() => _PhotosRowState();
+}
+
+class _PhotosRowState extends State<_PhotosRow> {
+  Future<void> _pickImage({required bool fromCamera}) async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: fromCamera ? ImageSource.camera : ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (file != null) widget.onPhotoAdded(file.path);
+  }
+
+  void _showPicker(BuildContext ctx) {
+    showModalBottomSheet<void>(
+      context: ctx,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.all(Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              _SheetButton(
+                label: '📷  Take a photo',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(fromCamera: true);
+                },
+              ),
+              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              _SheetButton(
+                label: '🖼  Choose from gallery',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(fromCamera: false);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        _PhotoSlot(onTap: () {}),
-        const SizedBox(width: 8),
-        _PhotoSlot(onTap: () {}),
+        // One slot per saved photo
+        for (final path in widget.photos)
+          _PhotoSlot(imagePath: path, onTap: () {}),
+        // Always one trailing + slot to add the next photo
+        _PhotoSlot(
+          imagePath: null,
+          onTap: () => _showPicker(context),
+        ),
       ],
     );
   }
 }
 
-class _PhotoSlot extends StatelessWidget {
-  const _PhotoSlot({required this.onTap});
+class _SheetButton extends StatelessWidget {
+  const _SheetButton({required this.label, required this.onTap});
+  final String label;
   final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        color: Colors.transparent,
+        child: Text(
+          label,
+          style: AppTextStyles.bodyMedium16.copyWith(
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PhotoSlot extends StatelessWidget {
+  const _PhotoSlot({required this.onTap, this.imagePath});
+  final VoidCallback onTap;
+  final String? imagePath;
 
   @override
   Widget build(BuildContext context) {
@@ -576,20 +827,30 @@ class _PhotoSlot extends StatelessWidget {
       child: SizedBox(
         width: 83,
         height: 80,
-        child: CustomPaint(
-          painter: _DashedBorderPainter(),
-          child: Center(
-            child: Text(
-              '+',
-              style: AppTextStyles.headerTitle.copyWith(
-                fontSize: 24,
-                color: const Color(0xFF96A8C2),
-                fontWeight: FontWeight.w500,
-                height: 1,
+        child: imagePath != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.file(
+                  File(imagePath!),
+                  fit: BoxFit.cover,
+                  width: 83,
+                  height: 80,
+                ),
+              )
+            : CustomPaint(
+                painter: _DashedBorderPainter(),
+                child: Center(
+                  child: Text(
+                    '+',
+                    style: AppTextStyles.headerTitle.copyWith(
+                      fontSize: 24,
+                      color: const Color(0xFF96A8C2),
+                      fontWeight: FontWeight.w500,
+                      height: 1,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -633,86 +894,6 @@ class _DashedBorderPainter extends CustomPainter {
   bool shouldRepaint(_DashedBorderPainter old) => false;
 }
 
-// ─── Notes textarea ───────────────────────────────────────────────────────────
-
-class _NotesField extends StatelessWidget {
-  const _NotesField({required this.controller, required this.focusNode});
-  final TextEditingController controller;
-  final FocusNode focusNode;
-
-  @override
-  Widget build(BuildContext context) {
-    const border = OutlineInputBorder(
-      borderRadius: BorderRadius.all(Radius.circular(16)),
-      borderSide: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-    );
-
-    return TextField(
-      controller: controller,
-      focusNode: focusNode,
-      maxLines: 5,
-      style: AppTextStyles.bodyRegular14.copyWith(
-        color: AppColors.textPrimary,
-        fontSize: 14,
-      ),
-      decoration: InputDecoration(
-        hintText: 'Caught up at the usual spot...',
-        hintStyle: AppTextStyles.bodyRegular14.copyWith(
-          color: const Color(0xFF96A8C2),
-          fontSize: 14,
-        ),
-        filled: false,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: border,
-        enabledBorder: border,
-        focusedBorder: border.copyWith(
-          borderSide: const BorderSide(color: Color(0xFF96A8C2), width: 1),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Log button ───────────────────────────────────────────────────────────────
-
-class _LogButton extends StatelessWidget {
-  const _LogButton({required this.onTap});
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 56,
-        decoration: BoxDecoration(
-          color: AppColors.buttonDark,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 30,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CustomPaint(painter: _PlusPainter()),
-            ),
-            const SizedBox(width: 12),
-            Text('Log moment', style: AppTextStyles.logButtonLabel),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _PlusPainter extends CustomPainter {
   @override

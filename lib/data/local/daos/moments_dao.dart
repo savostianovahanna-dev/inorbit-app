@@ -34,4 +34,15 @@ class MomentsDao extends DatabaseAccessor<AppDatabase> with _$MomentsDaoMixin {
       (delete(momentsTable)..where((t) => t.id.equals(id))).go();
   Future<void> insertOrUpdateMoment(MomentsTableCompanion c) =>
       into(momentsTable).insertOnConflictUpdate(c);
+
+  /// Deletes all moments whose ID is NOT in [keepIds].
+  /// Pass an empty list to delete every moment in the table.
+  Future<void> deleteNotInIds(List<String> keepIds) {
+    if (keepIds.isEmpty) {
+      return delete(momentsTable).go();
+    }
+    return (delete(momentsTable)
+          ..where((t) => t.id.isNotIn(keepIds)))
+        .go();
+  }
 }

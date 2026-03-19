@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/image_background_button.dart';
 import '../../home/screens/home_screen.dart';
 
 // ─── Page data ────────────────────────────────────────────────────────────────
@@ -172,7 +173,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 const SizedBox(height: 11),
 
                 // Get Started button
-                _GetStartedButton(onTap: _next),
+                ImageBackgroundButton(label: 'Get Started', onTap: _next),
               ],
             ),
           ),
@@ -215,54 +216,3 @@ class _ProgressDots extends StatelessWidget {
   }
 }
 
-// ─── Get Started button ───────────────────────────────────────────────────────
-
-class _GetStartedButton extends StatelessWidget {
-  const _GetStartedButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 68,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 30,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            children: [
-              // Background texture
-              Positioned.fill(
-                child: Image.asset('assets/button_background.png', fit: BoxFit.cover),
-              ),
-              // Dark semi-transparent overlay
-              Positioned.fill(
-                child: ColoredBox(
-                  color: const Color(0xFF111111).withValues(alpha: 0.75),
-                ),
-              ),
-              // Label
-              Center(
-                child: Text(
-                  'Get Started',
-                  style: AppTextStyles.bodyMedium16.copyWith(color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

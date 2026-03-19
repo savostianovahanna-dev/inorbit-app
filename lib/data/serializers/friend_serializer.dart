@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../../domain/entities/friend.dart';
@@ -19,6 +21,9 @@ class FriendSerializer {
     lastConnectedAt: data.lastConnectedAt,
     createdAt: data.createdAt,
     avatarUrl: data.avatarUrl,
+    topics: data.topics == null
+        ? const []
+        : List<String>.from(jsonDecode(data.topics!) as List),
   );
 
   FriendsTableCompanion toDrift(Friend entity, {String? userId}) =>
@@ -36,5 +41,8 @@ class FriendSerializer {
         createdAt: Value(entity.createdAt),
         userId: Value(userId),
         avatarUrl: Value(entity.avatarUrl),
+        topics: Value(
+          entity.topics.isEmpty ? null : jsonEncode(entity.topics),
+        ),
       );
 }

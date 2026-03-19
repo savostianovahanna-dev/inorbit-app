@@ -8,9 +8,9 @@ class SyncData {
   final SyncedMomentRepository momentRepo;
 
   Future<void> call() async {
-    await Future.wait([
-      friendRepo.syncFromRemote(),
-      momentRepo.syncFromRemote(),
-    ]);
+    // Friends first: cascade delete removes orphaned moments automatically,
+    // so moment sync starts with a clean slate for deleted friends.
+    await friendRepo.syncFromRemote();
+    await momentRepo.syncFromRemote();
   }
 }

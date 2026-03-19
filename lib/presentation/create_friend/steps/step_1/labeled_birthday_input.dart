@@ -5,8 +5,13 @@ import 'package:inorbit/core/theme/app_text_styles.dart';
 import 'package:inorbit/presentation/create_friend/widgets/input_box.dart';
 
 class LabeledBirthdayInput extends StatefulWidget {
-  const LabeledBirthdayInput({super.key, required this.controller});
+  const LabeledBirthdayInput({
+    super.key,
+    required this.controller,
+    this.initialDate,
+  });
   final TextEditingController controller;
+  final DateTime? initialDate;
 
   @override
   State<LabeledBirthdayInput> createState() => _LabeledBirthdayInputState();
@@ -14,6 +19,16 @@ class LabeledBirthdayInput extends StatefulWidget {
 
 class _LabeledBirthdayInputState extends State<LabeledBirthdayInput> {
   DateTime? _picked;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialDate != null) {
+      _picked = widget.initialDate;
+      widget.controller.text =
+          '${_months[_picked!.month - 1]} ${_picked!.day}';
+    }
+  }
 
   static const _months = [
     'January',

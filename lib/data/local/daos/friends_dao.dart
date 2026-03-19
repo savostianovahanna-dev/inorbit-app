@@ -47,4 +47,17 @@ class FriendsDao extends DatabaseAccessor<AppDatabase> with _$FriendsDaoMixin {
 
   Future<void> insertOrUpdateFriend(FriendsTableCompanion c) =>
       into(friendsTable).insertOnConflictUpdate(c);
+
+  /// Deletes all friends for [userId] whose ID is NOT in [keepIds].
+  /// Pass an empty list to delete every friend for [userId].
+  Future<void> deleteNotInIds(List<String> keepIds, String userId) {
+    if (keepIds.isEmpty) {
+      return (delete(friendsTable)
+            ..where((t) => t.userId.equals(userId)))
+          .go();
+    }
+    return (delete(friendsTable)
+          ..where((t) => t.userId.equals(userId) & t.id.isNotIn(keepIds)))
+        .go();
+  }
 }

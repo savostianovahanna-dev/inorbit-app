@@ -57,10 +57,13 @@ class SyncedFriendRepository implements FriendRepository {
 
   // ── Pull sync — Firestore → local ─────────────────────────────────────────
 
+  /// Full replace sync: upserts all remote friends, then deletes any local
+  /// friends that no longer exist in Firebase (e.g. deleted from console).
   Future<void> syncFromRemote() async {
     final friends = await remote.getAllFriendsOnce();
     for (final friend in friends) {
       await local.addOrUpdateFriend(friend);
     }
+    await local.deleteNotInIds(friends.map((f) => f.id).toList());
   }
 }

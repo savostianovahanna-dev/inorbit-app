@@ -92,7 +92,7 @@ class HistorySection extends StatelessWidget {
     title: _typeLabel[m.type] ?? m.type,
     date: '${_months[m.date.month - 1]} ${m.date.day}, ${m.date.year}',
     description: m.note ?? '',
-    photoCount: m.photoPaths.length.clamp(0, 2),
+    photoPaths: m.photoPaths,
   );
 
   @override

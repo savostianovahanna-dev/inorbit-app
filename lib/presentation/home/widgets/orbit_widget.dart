@@ -43,11 +43,13 @@ class OrbitWidget extends StatefulWidget {
     required this.friends,
     this.userAvatarPath,
     required this.userInitials,
+    this.onFriendTap,
   });
 
   final List<Friend> friends;
   final String? userAvatarPath;
   final String userInitials;
+  final ValueChanged<Friend>? onFriendTap;
 
   @override
   State<OrbitWidget> createState() => _OrbitWidgetState();
@@ -89,13 +91,19 @@ class _OrbitWidgetState extends State<OrbitWidget>
       builder: (context, constraints) {
         final w = constraints.maxWidth;
         final cx = w / 2;
-        const cy = _kContainerH / 2;
+
+        // At least 50 % of the screen height, never less than the original 220 px.
+        final containerH = math.max(
+          _kContainerH,
+          MediaQuery.of(context).size.height * 0.5,
+        );
+        final cy = containerH / 2;
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: SizedBox(
             width: w,
-            height: _kContainerH,
+            height: containerH,
             child: Stack(
               clipBehavior: Clip.hardEdge,
               children: [
@@ -188,12 +196,18 @@ class _OrbitWidgetState extends State<OrbitWidget>
           final px = cx + ex * cosT - ey * sinT;
           final py = cy + ex * sinT + ey * cosT;
 
+          final friend = friends[i];
           return Positioned(
             left: px - half,
             top:  py - half,
-            child: _FriendAvatar(
-              initials:  _initials(friends[i].name),
-              isOverdue: friends[i].isOverdue,
+            child: GestureDetector(
+              onTap: () => widget.onFriendTap?.call(friend),
+              child: _FriendAvatar(
+                initials:    _initials(friend.name),
+                isOverdue:   friend.isOverdue,
+                avatarPath:  friend.avatarPath,
+                planetIndex: friend.planetIndex,
+              ),
             ),
           );
         }(),
@@ -204,11 +218,16 @@ class _OrbitWidgetState extends State<OrbitWidget>
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /// Returns up to two-letter initials from a display name.
+/// Uses [String.runes] to safely handle multi-byte characters (emoji, etc.)
+/// and avoid producing invalid UTF-16 surrogate pairs.
 String _initials(String name) {
+  String _firstChar(String s) =>
+      s.isEmpty ? '' : String.fromCharCode(s.runes.first).toUpperCase();
+
   final parts = name.trim().split(RegExp(r'\s+'));
   if (parts.isEmpty) return '?';
-  if (parts.length == 1) return parts[0][0].toUpperCase();
-  return '${parts[0][0]}${parts.last[0]}'.toUpperCase();
+  if (parts.length == 1) return _firstChar(parts[0]);
+  return '${_firstChar(parts[0])}${_firstChar(parts.last)}';
 }
 
 // ─── CustomPainter ────────────────────────────────────────────────────────────
@@ -257,34 +276,54 @@ class _FriendAvatar extends StatelessWidget {
   const _FriendAvatar({
     required this.initials,
     required this.isOverdue,
+    this.avatarPath,
+    this.planetIndex,
   });
 
   final String initials;
   final bool isOverdue;
+  final String? avatarPath;
+  final int? planetIndex;
+
+  DecorationImage? get _image {
+    if (avatarPath != null) {
+      return DecorationImage(
+        image: FileImage(File(avatarPath!)),
+        fit: BoxFit.cover,
+      );
+    }
+    if (planetIndex != null) {
+      return DecorationImage(
+        image: AssetImage('assets/images/planets/planet_${planetIndex! + 1}.png'),
+        fit: BoxFit.cover,
+      );
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final hasImage = avatarPath != null || planetIndex != null;
     return Container(
       width: _kAvatarSize,
       height: _kAvatarSize,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: const Color(0xFF1E3A6E),
-        border: Border.all(
-          // Orange ring for friends who need attention.
-          color: isOverdue ? AppColors.orange : AppColors.white,
-          width: 2.0,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.30),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
+        image: _image,
+        // Only overdue friends get the orange attention ring; non-overdue have no stroke.
+        border: isOverdue
+            ? Border.all(color: AppColors.orange, width: 2.0)
+            : null,
+        boxShadow: const [
+          BoxShadow(color: Color(0x2EFFFFFF), blurRadius: 4,  spreadRadius: 0),
+          BoxShadow(color: Color(0x1FFFFFFF), blurRadius: 8,  spreadRadius: 1),
+          BoxShadow(color: Color(0x12FFFFFF), blurRadius: 16, spreadRadius: 2),
+          BoxShadow(color: Color(0x0AFFFFFF), blurRadius: 24, spreadRadius: 3),
         ],
       ),
       alignment: Alignment.center,
-      child: Text(initials, style: AppTextStyles.avatarInitials12),
+      child: hasImage ? null : Text(initials, style: AppTextStyles.avatarInitials12),
     );
   }
 }
