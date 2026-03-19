@@ -149,6 +149,15 @@ class $FriendsTableTable extends FriendsTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _topicsMeta = const VerificationMeta('topics');
+  @override
+  late final GeneratedColumn<String> topics = GeneratedColumn<String>(
+    'topics',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -164,6 +173,7 @@ class $FriendsTableTable extends FriendsTable
     userId,
     remindBirthday,
     notes,
+    topics,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -274,6 +284,12 @@ class $FriendsTableTable extends FriendsTable
         notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
       );
     }
+    if (data.containsKey('topics')) {
+      context.handle(
+        _topicsMeta,
+        topics.isAcceptableOrUnknown(data['topics']!, _topicsMeta),
+      );
+    }
     return context;
   }
 
@@ -341,6 +357,10 @@ class $FriendsTableTable extends FriendsTable
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
       ),
+      topics: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}topics'],
+      ),
     );
   }
 
@@ -365,6 +385,7 @@ class FriendsTableData extends DataClass
   final String? userId;
   final bool remindBirthday;
   final String? notes;
+  final String? topics;
   const FriendsTableData({
     required this.id,
     required this.name,
@@ -379,6 +400,7 @@ class FriendsTableData extends DataClass
     this.userId,
     required this.remindBirthday,
     this.notes,
+    this.topics,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -409,6 +431,9 @@ class FriendsTableData extends DataClass
     map['remind_birthday'] = Variable<bool>(remindBirthday);
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || topics != null) {
+      map['topics'] = Variable<String>(topics);
     }
     return map;
   }
@@ -445,6 +470,8 @@ class FriendsTableData extends DataClass
       remindBirthday: Value(remindBirthday),
       notes:
           notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      topics:
+          topics == null && nullToAbsent ? const Value.absent() : Value(topics),
     );
   }
 
@@ -467,6 +494,7 @@ class FriendsTableData extends DataClass
       userId: serializer.fromJson<String?>(json['userId']),
       remindBirthday: serializer.fromJson<bool>(json['remindBirthday']),
       notes: serializer.fromJson<String?>(json['notes']),
+      topics: serializer.fromJson<String?>(json['topics']),
     );
   }
   @override
@@ -486,6 +514,7 @@ class FriendsTableData extends DataClass
       'userId': serializer.toJson<String?>(userId),
       'remindBirthday': serializer.toJson<bool>(remindBirthday),
       'notes': serializer.toJson<String?>(notes),
+      'topics': serializer.toJson<String?>(topics),
     };
   }
 
@@ -503,6 +532,7 @@ class FriendsTableData extends DataClass
     Value<String?> userId = const Value.absent(),
     bool? remindBirthday,
     Value<String?> notes = const Value.absent(),
+    Value<String?> topics = const Value.absent(),
   }) => FriendsTableData(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -518,6 +548,7 @@ class FriendsTableData extends DataClass
     userId: userId.present ? userId.value : this.userId,
     remindBirthday: remindBirthday ?? this.remindBirthday,
     notes: notes.present ? notes.value : this.notes,
+    topics: topics.present ? topics.value : this.topics,
   );
   FriendsTableData copyWithCompanion(FriendsTableCompanion data) {
     return FriendsTableData(
@@ -545,6 +576,7 @@ class FriendsTableData extends DataClass
               ? data.remindBirthday.value
               : this.remindBirthday,
       notes: data.notes.present ? data.notes.value : this.notes,
+      topics: data.topics.present ? data.topics.value : this.topics,
     );
   }
 
@@ -563,7 +595,8 @@ class FriendsTableData extends DataClass
           ..write('createdAt: $createdAt, ')
           ..write('userId: $userId, ')
           ..write('remindBirthday: $remindBirthday, ')
-          ..write('notes: $notes')
+          ..write('notes: $notes, ')
+          ..write('topics: $topics')
           ..write(')'))
         .toString();
   }
@@ -583,6 +616,7 @@ class FriendsTableData extends DataClass
     userId,
     remindBirthday,
     notes,
+    topics,
   );
   @override
   bool operator ==(Object other) =>
@@ -600,7 +634,8 @@ class FriendsTableData extends DataClass
           other.createdAt == this.createdAt &&
           other.userId == this.userId &&
           other.remindBirthday == this.remindBirthday &&
-          other.notes == this.notes);
+          other.notes == this.notes &&
+          other.topics == this.topics);
 }
 
 class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
@@ -617,6 +652,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
   final Value<String?> userId;
   final Value<bool> remindBirthday;
   final Value<String?> notes;
+  final Value<String?> topics;
   final Value<int> rowid;
   const FriendsTableCompanion({
     this.id = const Value.absent(),
@@ -632,6 +668,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     this.userId = const Value.absent(),
     this.remindBirthday = const Value.absent(),
     this.notes = const Value.absent(),
+    this.topics = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   FriendsTableCompanion.insert({
@@ -648,6 +685,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     this.userId = const Value.absent(),
     this.remindBirthday = const Value.absent(),
     this.notes = const Value.absent(),
+    this.topics = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -668,6 +706,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     Expression<String>? userId,
     Expression<bool>? remindBirthday,
     Expression<String>? notes,
+    Expression<String>? topics,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -684,6 +723,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
       if (userId != null) 'user_id': userId,
       if (remindBirthday != null) 'remind_birthday': remindBirthday,
       if (notes != null) 'notes': notes,
+      if (topics != null) 'topics': topics,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -702,6 +742,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     Value<String?>? userId,
     Value<bool>? remindBirthday,
     Value<String?>? notes,
+    Value<String?>? topics,
     Value<int>? rowid,
   }) {
     return FriendsTableCompanion(
@@ -718,6 +759,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
       userId: userId ?? this.userId,
       remindBirthday: remindBirthday ?? this.remindBirthday,
       notes: notes ?? this.notes,
+      topics: topics ?? this.topics,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -764,6 +806,9 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (topics.present) {
+      map['topics'] = Variable<String>(topics.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -786,6 +831,7 @@ class FriendsTableCompanion extends UpdateCompanion<FriendsTableData> {
           ..write('userId: $userId, ')
           ..write('remindBirthday: $remindBirthday, ')
           ..write('notes: $notes, ')
+          ..write('topics: $topics, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1364,6 +1410,7 @@ typedef $$FriendsTableTableCreateCompanionBuilder =
       Value<String?> userId,
       Value<bool> remindBirthday,
       Value<String?> notes,
+      Value<String?> topics,
       Value<int> rowid,
     });
 typedef $$FriendsTableTableUpdateCompanionBuilder =
@@ -1381,6 +1428,7 @@ typedef $$FriendsTableTableUpdateCompanionBuilder =
       Value<String?> userId,
       Value<bool> remindBirthday,
       Value<String?> notes,
+      Value<String?> topics,
       Value<int> rowid,
     });
 
@@ -1485,6 +1533,11 @@ class $$FriendsTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get topics => $composableBuilder(
+    column: $table.topics,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> momentsTableRefs(
     Expression<bool> Function($$MomentsTableTableFilterComposer f) f,
   ) {
@@ -1584,6 +1637,11 @@ class $$FriendsTableTableOrderingComposer
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get topics => $composableBuilder(
+    column: $table.topics,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$FriendsTableTableAnnotationComposer
@@ -1643,6 +1701,9 @@ class $$FriendsTableTableAnnotationComposer
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get topics =>
+      $composableBuilder(column: $table.topics, builder: (column) => column);
 
   Expression<T> momentsTableRefs<T extends Object>(
     Expression<T> Function($$MomentsTableTableAnnotationComposer a) f,
@@ -1712,6 +1773,7 @@ class $$FriendsTableTableTableManager
                 Value<String?> userId = const Value.absent(),
                 Value<bool> remindBirthday = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<String?> topics = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FriendsTableCompanion(
                 id: id,
@@ -1727,6 +1789,7 @@ class $$FriendsTableTableTableManager
                 userId: userId,
                 remindBirthday: remindBirthday,
                 notes: notes,
+                topics: topics,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1744,6 +1807,7 @@ class $$FriendsTableTableTableManager
                 Value<String?> userId = const Value.absent(),
                 Value<bool> remindBirthday = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<String?> topics = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FriendsTableCompanion.insert(
                 id: id,
@@ -1759,6 +1823,7 @@ class $$FriendsTableTableTableManager
                 userId: userId,
                 remindBirthday: remindBirthday,
                 notes: notes,
+                topics: topics,
                 rowid: rowid,
               ),
           withReferenceMapper:

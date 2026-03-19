@@ -4,15 +4,22 @@ import 'package:inorbit/core/theme/app_colors.dart';
 import 'package:inorbit/core/theme/app_text_styles.dart';
 
 class RemindBirthdayRow extends StatefulWidget {
-  const RemindBirthdayRow({super.key, this.onChanged});
+  const RemindBirthdayRow({super.key, this.onChanged, this.initialValue = true});
   final ValueChanged<bool>? onChanged;
+  final bool initialValue;
 
   @override
   State<RemindBirthdayRow> createState() => _RemindBirthdayRowState();
 }
 
 class _RemindBirthdayRowState extends State<RemindBirthdayRow> {
-  bool _value = true;
+  late bool _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.initialValue;
+  }
 
   @override
   Widget build(BuildContext context) {

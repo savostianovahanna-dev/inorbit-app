@@ -11,23 +11,23 @@ import '../../../domain/entities/friend.dart';
 const _kCardWidth = 160.0;
 
 const _kTypeEmoji = {
-  'coffee':   '☕',
-  'call':     '📞',
-  'text':     '💬',
-  'dinner':   '🍽️',
-  'movie':    '🎬',
+  'coffee': '☕',
+  'call': '📞',
+  'text': '💬',
+  'dinner': '🍽️',
+  'movie': '🎬',
   'shopping': '🛍️',
-  'other':    '✨',
+  'other': '✨',
 };
 
 const _kTypeLabel = {
-  'coffee':   'Coffee',
-  'call':     'Call',
-  'text':     'Text',
-  'dinner':   'Dinner',
-  'movie':    'Movie',
+  'coffee': 'Coffee',
+  'call': 'Call',
+  'text': 'Text',
+  'dinner': 'Dinner',
+  'movie': 'Movie',
   'shopping': 'Shopping',
-  'other':    'Other',
+  'other': 'Other',
 };
 
 const _kAmber = Color(0xFFC4985A);
@@ -94,6 +94,8 @@ class FriendCard extends StatelessWidget {
             // Orbit tier label
             Text(
               _tierLabel(friend.orbitTier),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: AppTextStyles.bodyRegular14.copyWith(
                 fontSize: 12,
                 color: _kMuted,
@@ -101,7 +103,7 @@ class FriendCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             const _DashedDivider(),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             // Last meeting
             _MeetingRow(type: lastMeetingType),
             const SizedBox(height: 3),
@@ -183,6 +185,8 @@ class _MeetingRow extends StatelessWidget {
     if (type == null) {
       return Text(
         'No log yet',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: AppTextStyles.bodyRegular14.copyWith(
           fontSize: 13,
           color: _kMuted,
@@ -195,6 +199,8 @@ class _MeetingRow extends StatelessWidget {
 
     return Text(
       '$emoji $label',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       style: AppTextStyles.bodyRegular14.copyWith(
         fontSize: 13,
         color: AppColors.textPrimary,
@@ -213,6 +219,8 @@ class _DaysText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       _label(days),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       style: AppTextStyles.bodyRegular14.copyWith(
         fontSize: 12,
         color: isOverdue ? _kAmber : _kMuted,
@@ -248,12 +256,13 @@ class _DashPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     const dashWidth = 5.0;
-    const dashGap   = 5.0;
+    const dashGap = 5.0;
 
-    final paint = Paint()
-      ..color      = AppColors.divider
-      ..strokeWidth = 1.0
-      ..strokeCap  = StrokeCap.round;
+    final paint =
+        Paint()
+          ..color = AppColors.divider
+          ..strokeWidth = 1.0
+          ..strokeCap = StrokeCap.round;
 
     var x = 0.0;
     while (x < size.width) {
@@ -272,16 +281,22 @@ class _DashPainter extends CustomPainter {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/// Returns up to two-letter initials from a display name.
+/// Uses [String.runes] to safely handle multi-byte characters (emoji, etc.)
+/// and avoid producing invalid UTF-16 surrogate pairs.
 String _initials(String name) {
+  String _firstChar(String s) =>
+      s.isEmpty ? '' : String.fromCharCode(s.runes.first).toUpperCase();
+
   final parts = name.trim().split(RegExp(r'\s+'));
   if (parts.isEmpty) return '?';
-  if (parts.length == 1) return parts[0][0].toUpperCase();
-  return '${parts[0][0]}${parts.last[0]}'.toUpperCase();
+  if (parts.length == 1) return _firstChar(parts[0]);
+  return '${_firstChar(parts[0])}${_firstChar(parts.last)}';
 }
 
 String _tierLabel(String tier) => switch (tier) {
-      'inner_circle' => 'Inner circle',
-      'regulars'     => 'Regulars',
-      'casuals'      => 'Casuals',
-      _              => tier,
-    };
+  'inner_circle' => 'Inner circle',
+  'regulars' => 'Regulars',
+  'casuals' => 'Casuals',
+  _ => tier,
+};

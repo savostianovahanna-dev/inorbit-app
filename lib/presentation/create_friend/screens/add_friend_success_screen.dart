@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/image_background_button.dart';
 
 /// Shown after the user completes all 3 steps of the "Add Friend" flow.
 /// Figma: node 58-6490 "Create friend / successfully create"
@@ -68,9 +69,11 @@ class AddFriendSuccessScreen extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   // "Go to the orbit" button
-                  _GoToOrbitButton(
+                  ImageBackgroundButton(
+                    label: 'Go to the orbit',
                     onTap: () =>
                         Navigator.of(context).popUntil((r) => r.isFirst),
+                    height: 56,
                   ),
                 ],
               ),
@@ -82,35 +85,3 @@ class AddFriendSuccessScreen extends StatelessWidget {
   }
 }
 
-// ─── "Go to the orbit" button ─────────────────────────────────────────────────
-
-class _GoToOrbitButton extends StatelessWidget {
-  const _GoToOrbitButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        height: 56,
-        decoration: BoxDecoration(
-          color: const Color(0xFF111111).withValues(alpha: 0.75),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 30,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text('Go to the orbit', style: AppTextStyles.logButtonLabel),
-        ),
-      ),
-    );
-  }
-}

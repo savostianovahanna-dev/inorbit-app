@@ -22,10 +22,14 @@ class AvatarPicker extends StatefulWidget {
     super.key,
     this.onPlanetIndexChanged,
     this.onAvatarPathChanged,
+    this.initialPlanetIndex,
+    this.initialAvatarPath,
   });
 
   final ValueChanged<int?>? onPlanetIndexChanged;
   final ValueChanged<String?>? onAvatarPathChanged;
+  final int? initialPlanetIndex;
+  final String? initialAvatarPath;
 
   @override
   State<AvatarPicker> createState() => _AvatarPickerState();
@@ -34,8 +38,23 @@ class AvatarPicker extends StatefulWidget {
 class _AvatarPickerState extends State<AvatarPicker> {
   String? _selectedPlanet;
   XFile? _pickedFile;
+  String? _customPath; // for pre-filled file-path avatars (edit flow)
 
-  bool get _hasPhoto => _selectedPlanet != null || _pickedFile != null;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialPlanetIndex != null) {
+      final idx = widget.initialPlanetIndex!;
+      if (idx >= 0 && idx < kPlanets.length) {
+        _selectedPlanet = kPlanets[idx];
+      }
+    } else if (widget.initialAvatarPath != null) {
+      _customPath = widget.initialAvatarPath;
+    }
+  }
+
+  bool get _hasPhoto =>
+      _selectedPlanet != null || _pickedFile != null || _customPath != null;
 
   void _openSheet() {
     showModalBottomSheet(
@@ -50,6 +69,7 @@ class _AvatarPickerState extends State<AvatarPicker> {
               setState(() {
                 _selectedPlanet = path;
                 _pickedFile = null;
+                _customPath = null;
               });
               final index = int.tryParse(path.split('_').last.split('.').first);
               widget.onPlanetIndexChanged?.call(index);
@@ -60,6 +80,7 @@ class _AvatarPickerState extends State<AvatarPicker> {
               setState(() {
                 _pickedFile = file;
                 _selectedPlanet = null;
+                _customPath = null;
               });
               widget.onAvatarPathChanged?.call(file.path);
               widget.onPlanetIndexChanged?.call(null);
@@ -76,6 +97,20 @@ class _AvatarPickerState extends State<AvatarPicker> {
         fit: BoxFit.cover,
         width: 100,
         height: 100,
+      );
+    }
+    if (_customPath != null) {
+      return Image.file(
+        File(_customPath!),
+        fit: BoxFit.cover,
+        width: 100,
+        height: 100,
+        errorBuilder: (_, __, ___) => Center(
+          child: CustomPaint(
+            size: const Size(44, 44),
+            painter: _CameraIconPainter(),
+          ),
+        ),
       );
     }
     if (_selectedPlanet != null) {

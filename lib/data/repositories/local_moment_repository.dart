@@ -67,6 +67,15 @@ class LocalMomentRepository implements MomentRepository {
     }
   }
 
+  /// Deletes all local moments whose ID is NOT in [keepIds].
+  Future<void> deleteNotInIds(List<String> keepIds) async {
+    try {
+      await _dao.deleteNotInIds(keepIds);
+    } catch (e) {
+      throw DatabaseFailure(e.toString());
+    }
+  }
+
   // ── Error helper ─────────────────────────────────────────────────────────
 
   static void _rethrowAsDatabaseFailure(Object error, StackTrace _) =>

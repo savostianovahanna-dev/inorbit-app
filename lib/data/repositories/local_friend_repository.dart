@@ -68,7 +68,16 @@ class LocalFriendRepository implements FriendRepository {
   Future<void> addOrUpdateFriend(Friend friend) async {
     try {
       final companion = _serializer.toDrift(friend, userId: _uid);
-      await _dao.insertOrUpdateFriend(companion); // ← через DAO, не через db
+      await _dao.insertOrUpdateFriend(companion);
+    } catch (e) {
+      throw DatabaseFailure(e.toString());
+    }
+  }
+
+  /// Deletes all local friends for the current user whose ID is NOT in [keepIds].
+  Future<void> deleteNotInIds(List<String> keepIds) async {
+    try {
+      await _dao.deleteNotInIds(keepIds, _uid);
     } catch (e) {
       throw DatabaseFailure(e.toString());
     }

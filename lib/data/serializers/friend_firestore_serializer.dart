@@ -24,6 +24,7 @@ class FriendFirestoreSerializer {
       avatarUrl: data['avatarUrl'] as String?,
       remindBirthday: (data['remindBirthday'] as bool?) ?? true,
       notes: data['notes'] as String?,
+      topics: List<String>.from(data['topics'] ?? []),
     );
   }
 
@@ -45,6 +46,7 @@ class FriendFirestoreSerializer {
     if (friend.avatarUrl != null) map['avatarUrl'] = friend.avatarUrl;
     if (!friend.remindBirthday) map['remindBirthday'] = false;
     if (friend.notes != null) map['notes'] = friend.notes;
+    if (friend.topics.isNotEmpty) map['topics'] = friend.topics;
     return map;
   }
 }

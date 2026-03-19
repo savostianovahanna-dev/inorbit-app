@@ -10,6 +10,7 @@ import '../widgets/friend_header.dart';
 import '../widgets/history_section.dart';
 import '../widgets/profile_hero.dart';
 import '../widgets/topics_section.dart';
+import 'edit_friend_screen.dart';
 import 'log_moment_screen.dart';
 
 /// Friend profile screen (Figma node 56-6064 "Friend").
@@ -78,43 +79,73 @@ class FriendScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
-        child: StreamBuilder<List<Moment>>(
-          stream: getIt<MomentRepository>().watchMomentsForFriend(friend.id),
-          builder: (context, snapshot) {
-            final moments = snapshot.data ?? [];
+        child: StreamBuilder<Friend?>(
+          stream: getIt<FriendRepository>().watchFriendById(friend.id),
+          builder: (context, friendSnap) {
+            // Use the initial friend as seed so there's no blank flash on entry
+            final liveFriend = friendSnap.data ?? friend;
 
-            return Stack(
-              children: [
-                // Scrollable content with bottom padding for sticky button
-                SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 80 + bottomPad),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      FriendHeader(
-                        name: friend.name,
-                        onDelete: () => _confirmDelete(context),
+            // Auto-pop if the friend was deleted externally
+            if (friendSnap.hasData && friendSnap.data == null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (context.mounted) Navigator.pop(context);
+              });
+            }
+
+            return StreamBuilder<List<Moment>>(
+              stream: getIt<MomentRepository>().watchMomentsForFriend(friend.id),
+              builder: (context, momentSnap) {
+                final moments = momentSnap.data ?? [];
+
+                return Stack(
+                  children: [
+                    // Scrollable content with bottom padding for sticky button
+                    SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: EdgeInsets.fromLTRB(16, 8, 16, 80 + bottomPad),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FriendHeader(
+                            name: liveFriend.name,
+                            onDelete: () => _confirmDelete(context),
+                            onEdit: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    EditFriendScreen(friend: liveFriend),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ProfileHero(friend: liveFriend),
+                          if (liveFriend.notes != null &&
+                              liveFriend.notes!.isNotEmpty) ...[
+                            const SizedBox(height: 20),
+                            Text(
+                              liveFriend.notes!,
+                              style: AppTextStyles.bodyRegular14,
+                            ),
+                          ],
+                          const SizedBox(height: 20),
+                          TopicsSection(friend: liveFriend),
+                          const SizedBox(height: 20),
+                          HistorySection(moments: moments),
+                          const SizedBox(height: 24),
+                        ],
                       ),
-                      const SizedBox(height: 8),
-                      ProfileHero(friend: friend),
-                      const SizedBox(height: 20),
-                      const TopicsSection(),
-                      const SizedBox(height: 20),
-                      HistorySection(moments: moments),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
+                    ),
 
-                // Sticky "Log moment" button pinned above safe area bottom
-                Positioned(
-                  bottom: bottomPad + 16,
-                  left: 16,
-                  right: 16,
-                  child: _LogMomentButton(friend: friend),
-                ),
-              ],
+                    // Sticky "Log moment" button pinned above safe area bottom
+                    Positioned(
+                      bottom: bottomPad + 16,
+                      left: 16,
+                      right: 16,
+                      child: _LogMomentButton(friend: liveFriend),
+                    ),
+                  ],
+                );
+              },
             );
           },
         ),

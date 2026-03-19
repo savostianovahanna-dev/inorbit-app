@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/di/injection.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../domain/usecases/sync_data.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../domain/entities/friend.dart';
 import '../../../bloc/home/home_bloc.dart';
@@ -24,8 +25,31 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   NavTab _activeTab = NavTab.orbit;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Sync from Firebase every time the app comes back to the foreground.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        getIt.isRegistered<SyncData>()) {
+      getIt<SyncData>().call().catchError((Object e) {
+        debugPrint('Resume sync failed: $e');
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,8 +147,18 @@ class _LoadedView extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          // ── Orbit visualization (edge-to-edge) ────────────────────────────
-          OrbitWidget(friends: friends, userInitials: 'You'),
+          // ── Orbit visualization ───────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: OrbitWidget(
+              friends: friends,
+              userInitials: 'You',
+              onFriendTap: (friend) => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => FriendScreen(friend: friend)),
+              ),
+            ),
+          ),
           const SizedBox(height: 12),
 
           // ── Subtitle ─────────────────────────────────────────────────────
@@ -199,8 +233,11 @@ class _EmptyOrbitView extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          // ── Orbit visualization (edge-to-edge) ───────────────────────────
-          OrbitWidget(friends: const [], userInitials: 'You'),
+          // ── Orbit visualization ───────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: OrbitWidget(friends: const [], userInitials: 'You'),
+          ),
           const SizedBox(height: 16),
 
           // ── Empty state card ─────────────────────────────────────────────
@@ -316,6 +353,8 @@ class _AttentionCard extends StatelessWidget {
                 ),
               ],
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 6),
           Text(

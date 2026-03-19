@@ -55,10 +55,13 @@ class SyncedMomentRepository implements MomentRepository {
 
   // ── Pull sync — Firestore → local ─────────────────────────────────────────
 
+  /// Full replace sync: upserts all remote moments, then deletes any local
+  /// moments that no longer exist in Firebase (e.g. deleted from console).
   Future<void> syncFromRemote() async {
     final moments = await remote.getAllMomentsOnce();
     for (final moment in moments) {
       await local.addOrUpdateMoment(moment);
     }
+    await local.deleteNotInIds(moments.map((m) => m.id).toList());
   }
 }

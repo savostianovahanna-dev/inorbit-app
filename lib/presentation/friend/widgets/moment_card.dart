@@ -1,3 +1,7 @@
+import 'dart:io';
+import 'dart:math' show pi;
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -9,7 +13,7 @@ class MomentData {
     required this.title,
     required this.date,
     required this.description,
-    this.photoCount = 0,
+    this.photoPaths = const [],
   });
 
   final String emoji;
@@ -17,23 +21,19 @@ class MomentData {
   final String date;
   final String description;
 
-  /// 0 = no photos, 1 = one photo, 2 = two stacked photos (Figma "several")
-  final int photoCount;
+  /// Actual file paths or Cloudinary URLs for photos attached to this moment.
+  final List<String> photoPaths;
 }
 
 /// Single moment entry inside the history card.
-/// Shows an emoji + activity type header, date, description text,
-/// and optional placeholder photo thumbnails.
 class MomentCard extends StatelessWidget {
   const MomentCard({
     super.key,
     required this.moment,
-    this.onEdit,
     this.onDelete,
   });
 
   final MomentData moment;
-  final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
   @override
@@ -56,43 +56,42 @@ class MomentCard extends StatelessWidget {
                 Text(moment.title, style: AppTextStyles.momentTitle),
               ],
             ),
-            _MomentMenuButton(onEdit: onEdit, onDelete: onDelete),
+            _MomentMenuButton(onDelete: onDelete),
           ],
         ),
 
-        // Date on its own line
+        // Date
         const SizedBox(height: 4),
         Text(moment.date, style: AppTextStyles.momentDate),
-        const SizedBox(height: 8),
 
-        // Description
-        Text(
-          moment.description,
-          style: AppTextStyles.bodyRegular14,
-        ),
+        // Description — only when non-empty
+        if (moment.description.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(moment.description, style: AppTextStyles.bodyRegular14),
+        ],
 
-        // Photo thumbnails (placeholders)
-        if (moment.photoCount > 0) ...[
+        // Photos
+        if (moment.photoPaths.isNotEmpty) ...[
           const SizedBox(height: 10),
-          _PhotoThumbnails(count: moment.photoCount),
+          _PhotoThumbnails(moment: moment),
         ],
       ],
     );
   }
 }
 
-class _MomentMenuButton extends StatelessWidget {
-  const _MomentMenuButton({this.onEdit, this.onDelete});
+// ─── Context menu (Delete only) ───────────────────────────────────────────────
 
-  final VoidCallback? onEdit;
+class _MomentMenuButton extends StatelessWidget {
+  const _MomentMenuButton({this.onDelete});
+
   final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<_MomentMenuAction>(
-      onSelected: (action) {
-        if (action == _MomentMenuAction.edit) onEdit?.call();
-        if (action == _MomentMenuAction.delete) onDelete?.call();
+    return PopupMenuButton<String>(
+      onSelected: (v) {
+        if (v == 'delete') onDelete?.call();
       },
       offset: const Offset(0, 28),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -104,27 +103,18 @@ class _MomentMenuButton extends StatelessWidget {
           painter: _ThreeDotsHPainter(),
         ),
       ),
-      itemBuilder:
-          (_) => [
-            PopupMenuItem(
-              value: _MomentMenuAction.edit,
-              child: Text('Edit', style: AppTextStyles.bodyRegular14),
-            ),
-            PopupMenuItem(
-              value: _MomentMenuAction.delete,
-              child: Text(
-                'Delete',
-                style: AppTextStyles.bodyRegular14.copyWith(
-                  color: Colors.red,
-                ),
-              ),
-            ),
-          ],
+      itemBuilder: (_) => [
+        PopupMenuItem(
+          value: 'delete',
+          child: Text(
+            'Delete',
+            style: AppTextStyles.bodyRegular14.copyWith(color: Colors.red),
+          ),
+        ),
+      ],
     );
   }
 }
-
-enum _MomentMenuAction { edit, delete }
 
 class _ThreeDotsHPainter extends CustomPainter {
   @override
@@ -132,12 +122,10 @@ class _ThreeDotsHPainter extends CustomPainter {
     final paint = Paint()
       ..color = AppColors.textPrimary
       ..style = PaintingStyle.fill;
-
     final cy = size.height / 2;
     final cx = size.width / 2;
     const r = 1.5;
     const spacing = 6.0;
-
     canvas.drawCircle(Offset(cx - spacing, cy), r, paint);
     canvas.drawCircle(Offset(cx, cy), r, paint);
     canvas.drawCircle(Offset(cx + spacing, cy), r, paint);
@@ -147,61 +135,256 @@ class _ThreeDotsHPainter extends CustomPainter {
   bool shouldRepaint(_ThreeDotsHPainter old) => false;
 }
 
-class _PhotoThumbnails extends StatelessWidget {
-  const _PhotoThumbnails({required this.count});
+// ─── Photo thumbnails ─────────────────────────────────────────────────────────
 
-  final int count;
+class _PhotoThumbnails extends StatelessWidget {
+  const _PhotoThumbnails({required this.moment});
+
+  final MomentData moment;
+
+  List<String> get paths => moment.photoPaths;
+
+  static Widget _img(String path, {double? height}) {
+    final isRemote = path.startsWith('http');
+    final placeholder = Container(
+      width: double.infinity,
+      height: height,
+      color: AppColors.textSecondary.withValues(alpha: 0.15),
+    );
+    Widget raw;
+    if (isRemote) {
+      raw = Image.network(
+        path,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: height,
+        errorBuilder: (_, __, ___) => placeholder,
+      );
+    } else {
+      raw = Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: height,
+        errorBuilder: (_, __, ___) => placeholder,
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(width: double.infinity, height: height, child: raw),
+    );
+  }
+
+  void _openPopup(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => _PhotoPopup(moment: moment),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (count == 1) {
-      return _PhotoBox(height: 139, color: AppColors.textSecondary);
+    if (paths.isEmpty) return const SizedBox.shrink();
+
+    // ── Single photo ─────────────────────────────────────────────────────────
+    if (paths.length == 1) {
+      return _img(paths[0], height: 160);
     }
 
-    // Two photos: first full-width, second slightly overlapping below
-    return SizedBox(
-      height: 173 + 17, // first photo + offset for second
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _PhotoBox(
-              height: 173,
-              color: AppColors.textSecondary.withValues(alpha: 0.7),
+    // ── 2+ photos: stacked card effect, tap to open popup ────────────────────
+    const photoH = 165.0;
+    const extraH = 20.0; // room for rotated edges to peek out symmetrically
+
+    return GestureDetector(
+      onTap: () => _openPopup(context),
+      child: SizedBox(
+        height: photoH + extraH,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Second photo — behind, rotated 7° around its own center,
+            // same top position so top-left overhang == bottom-right overhang
+            Positioned(
+              top: extraH / 2,
+              left: 0,
+              right: 0,
+              child: Transform.rotate(
+                angle: 7 * pi / 180,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    height: photoH,
+                    width: double.infinity,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _img(paths[1], height: photoH),
+                        Container(
+                          color: Colors.black.withValues(alpha: 0.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
-          ),
-          Positioned(
-            top: 17,
-            left: 3.52,
-            right: 0,
-            child: _PhotoBox(
-              height: 139,
-              color: AppColors.textSecondary.withValues(alpha: 0.5),
+
+            // First photo — in front, no rotation
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _img(paths[0], height: photoH),
             ),
-          ),
-        ],
+
+            // Photo count badge — only when there are more than 2 photos
+            if (paths.length > 2)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      color: Colors.black.withValues(alpha: 0.45),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${paths.length}',
+                        style: AppTextStyles.tagLabel.copyWith(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _PhotoBox extends StatelessWidget {
-  const _PhotoBox({required this.height, required this.color});
+// ─── Photo popup dialog ───────────────────────────────────────────────────────
 
-  final double height;
-  final Color color;
+class _PhotoPopup extends StatelessWidget {
+  const _PhotoPopup({required this.moment});
+
+  final MomentData moment;
+
+  static Widget _img(String path) {
+    final isRemote = path.startsWith('http');
+    final placeholder = Container(
+      width: double.infinity,
+      height: 240,
+      color: AppColors.textSecondary.withValues(alpha: 0.15),
+    );
+    Widget raw;
+    if (isRemote) {
+      raw = Image.network(
+        path,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: 240,
+        errorBuilder: (_, __, ___) => placeholder,
+      );
+    } else {
+      raw = Image.file(
+        File(path),
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: 240,
+        errorBuilder: (_, __, ___) => placeholder,
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(width: double.infinity, height: 240, child: raw),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: height,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: AppColors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Moment info ─────────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 52, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          moment.emoji,
+                          style: const TextStyle(fontSize: 18, height: 1),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(moment.title, style: AppTextStyles.momentTitle),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(moment.date, style: AppTextStyles.momentDate),
+                    if (moment.description.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        moment.description,
+                        style: AppTextStyles.bodyRegular14,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+                  // ── Photos — one per row ──────────────────────────────
+                  const SizedBox(height: 16),
+                  for (final path in moment.photoPaths)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      child: _img(path),
+                    ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+            // ── Close button ───────────────────────────────────────────────
+            Positioned(
+              top: 12,
+              right: 12,
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    size: 18,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

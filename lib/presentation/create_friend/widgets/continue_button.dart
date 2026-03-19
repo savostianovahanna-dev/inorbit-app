@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:inorbit/core/theme/app_colors.dart';
-import 'package:inorbit/core/theme/app_text_styles.dart';
+import 'package:inorbit/shared/widgets/dark_button.dart';
 
 class ContinueButton extends StatelessWidget {
   const ContinueButton({
@@ -19,37 +19,15 @@ class ContinueButton extends StatelessWidget {
     return Container(
       color: AppColors.background,
       padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomPad),
-      child: GestureDetector(
+      child: DarkButton(
+        label: label,
         onTap: onTap,
-        child: Container(
-          height: 56,
-          decoration: BoxDecoration(
-            color: AppColors.textPrimary,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 30,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(label, style: AppTextStyles.logButtonLabel),
-                if (showCheck) ...[
-                  const SizedBox(width: 10),
-                  CustomPaint(
-                    size: const Size(18, 18),
-                    painter: _CheckIconPainter(),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
+        trailingIcon: showCheck
+            ? CustomPaint(
+                size: const Size(18, 18),
+                painter: _CheckIconPainter(),
+              )
+            : null,
       ),
     );
   }

@@ -25,6 +25,8 @@ class FriendsTable extends Table {
   BoolColumn get remindBirthday =>
       boolean().withDefault(const Constant(true))();
   TextColumn get notes => text().nullable()();
+  // Added in schema v5 — JSON-encoded List<String>
+  TextColumn get topics => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -60,7 +62,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -77,6 +79,12 @@ class AppDatabase extends _$AppDatabase {
       if (from < 4) {
         await m.addColumn(friendsTable, friendsTable.remindBirthday);
         await m.addColumn(friendsTable, friendsTable.notes);
+      }
+      if (from < 5) {
+        await m.addColumn(
+          friendsTable,
+          friendsTable.topics as GeneratedColumn,
+        );
       }
     },
   );

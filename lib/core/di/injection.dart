@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:inorbit/bloc/add_friend/add_friend_bloc.dart';
 import 'package:inorbit/core/services/cloudinary_service.dart';
 import 'package:inorbit/domain/usecases/add_friend.use_case.dart';
+import 'package:inorbit/domain/usecases/add_moment_use_case.dart';
 
 import '../../data/local/app_database.dart';
 import '../../data/local/daos/friends_dao.dart';
@@ -132,9 +133,12 @@ void initRemoteRepositories(String userId) {
 
   getIt.registerLazySingleton<CloudinaryService>(() => CloudinaryService());
 
-  // UseCase
+  // Use cases
   getIt.registerSingleton<AddFriendUseCase>(
     AddFriendUseCase(getIt<FriendRepository>(), getIt<CloudinaryService>()),
+  );
+  getIt.registerSingleton<AddMomentUseCase>(
+    AddMomentUseCase(getIt<MomentRepository>(), getIt<CloudinaryService>()),
   );
 
   // BLoC
