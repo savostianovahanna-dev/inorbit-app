@@ -1,6 +1,15 @@
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../bloc/home/home_bloc.dart';
+import '../../../domain/entities/friend.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/notification_service.dart';
+import '../../../core/services/user_profile_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/screens/login_screen.dart';
@@ -23,6 +32,64 @@ class _SettingsContentState extends State<SettingsContent> {
   bool _countMessages = false;
 
   @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final data = await getIt<UserProfileService>().load(uid);
+    if (data == null || !mounted) return;
+    final s = (data['settings'] as Map<String, dynamic>?) ?? {};
+    setState(() {
+      _reminders = s['reminders'] as bool? ?? true;
+      _birthdays = s['birthdays'] as bool? ?? true;
+      _countMessages = s['countMessages'] as bool? ?? false;
+    });
+    // Keep in-memory cache in sync.
+    getIt<UserProfileService>().birthdaysEnabled = _birthdays;
+  }
+
+  /// Called when the birthday-reminder toggle is flipped.
+  /// Requests notification permission on first enable, then reschedules.
+  Future<void> _onBirthdaysToggled(bool enabled) async {
+    // Keep the in-memory cache up to date for HomeScreen's listener.
+    getIt<UserProfileService>().birthdaysEnabled = enabled;
+
+    // Capture friends list BEFORE any await so we don't use BuildContext
+    // across an async gap.
+    final friends = switch (context.read<HomeBloc>().state) {
+      HomeLoaded(:final friends) => friends,
+      _ => <Friend>[],
+    };
+
+    if (enabled) {
+      // Ask iOS for permission if we don't have it yet.
+      await getIt<NotificationService>().requestPermissions();
+    }
+
+    // Reschedule (or cancel) using the current friends list.
+    await getIt<NotificationService>().scheduleBirthdayReminders(
+      friends,
+      globalEnabled: enabled,
+    );
+  }
+
+  void _saveSettings() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    getIt<UserProfileService>().save(uid, {
+      'settings': {
+        'reminders': _reminders,
+        'birthdays': _birthdays,
+        'countMessages': _countMessages,
+      },
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
 
@@ -43,7 +110,12 @@ class _SettingsContentState extends State<SettingsContent> {
           const SizedBox(height: 20),
 
           // ── Profile card ─────────────────────────────────────────────────────
-          const _ProfileCard(),
+          _ProfileCard(
+            friendCount: switch (context.watch<HomeBloc>().state) {
+              HomeLoaded(:final friends) => friends.length,
+              _ => 0,
+            },
+          ),
           const SizedBox(height: 24),
 
           // ── Notifications ────────────────────────────────────────────────────
@@ -55,14 +127,21 @@ class _SettingsContentState extends State<SettingsContent> {
                 title: 'Reminders & nudges',
                 subtitle: "Get reminded when it's time to connect",
                 value: _reminders,
-                onChanged: (v) => setState(() => _reminders = v),
+                onChanged: (v) {
+                  setState(() => _reminders = v);
+                  _saveSettings();
+                },
               ),
               const _RowDivider(),
               _ToggleRow(
                 title: 'Birthday reminders',
                 subtitle: 'A quiet reminder the day before',
                 value: _birthdays,
-                onChanged: (v) => setState(() => _birthdays = v),
+                onChanged: (v) {
+                  setState(() => _birthdays = v);
+                  _saveSettings();
+                  _onBirthdaysToggled(v);
+                },
               ),
               const _RowDivider(),
               const _ValueRow(
@@ -88,7 +167,10 @@ class _SettingsContentState extends State<SettingsContent> {
                 title: 'Count messages as contact',
                 subtitle: 'Include texts and DMs in your history',
                 value: _countMessages,
-                onChanged: (v) => setState(() => _countMessages = v),
+                onChanged: (v) {
+                  setState(() => _countMessages = v);
+                  _saveSettings();
+                },
               ),
             ],
           ),
@@ -110,11 +192,40 @@ class _SettingsContentState extends State<SettingsContent> {
 
 // ─── Profile card ─────────────────────────────────────────────────────────────
 
-class _ProfileCard extends StatelessWidget {
-  const _ProfileCard();
+class _ProfileCard extends StatefulWidget {
+  const _ProfileCard({required this.friendCount});
+
+  final int friendCount;
+
+  @override
+  State<_ProfileCard> createState() => _ProfileCardState();
+}
+
+class _ProfileCardState extends State<_ProfileCard> {
+  void _openEditProfile(String name) {
+    Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditProfileScreen(initialName: name),
+      ),
+    ).then((changed) {
+      // Rebuild to pick up the updated displayName + localAvatarPath.
+      if (changed == true && mounted) setState(() {});
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final name = user?.displayName ?? 'You';
+    final googlePhotoUrl = user?.photoURL;
+    final localPath = getIt<UserProfileService>().localAvatarPath;
+    final initial =
+        name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
+    final orbitLabel = widget.friendCount == 1
+        ? '1 person in orbit'
+        : '${widget.friendCount} people in orbit';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -133,25 +244,7 @@ class _ProfileCard extends StatelessWidget {
               border: Border.all(color: AppColors.divider, width: 1.9),
             ),
             clipBehavior: Clip.antiAlias,
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.avatarFill, AppColors.orbitDark],
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  'E',
-                  style: AppTextStyles.bodyMedium16.copyWith(
-                    color: AppColors.white,
-                    fontSize: 22,
-                    height: 1,
-                  ),
-                ),
-              ),
-            ),
+            child: _buildAvatar(localPath, googlePhotoUrl, initial),
           ),
           const SizedBox(width: 12),
 
@@ -161,10 +254,10 @@ class _ProfileCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('Elena V.', style: AppTextStyles.headerTitle),
+                Text(name, style: AppTextStyles.headerTitle),
                 const SizedBox(height: 3),
                 Text(
-                  '4 people in orbit',
+                  orbitLabel,
                   style: AppTextStyles.settingsRowSubtitle.copyWith(
                     fontSize: 13,
                   ),
@@ -175,11 +268,7 @@ class _ProfileCard extends StatelessWidget {
 
           // ── Edit profile link ─────────────────────────────────────────────
           GestureDetector(
-            onTap:
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                ),
+            onTap: () => _openEditProfile(name),
             child: Text(
               'Edit profile',
               style: AppTextStyles.labelRegular14.copyWith(
@@ -188,6 +277,57 @@ class _ProfileCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar(
+    String? localPath,
+    String? googlePhotoUrl,
+    String initial,
+  ) {
+    // 1. Locally picked photo (set after editing profile).
+    if (localPath != null) {
+      return Image.file(File(localPath), fit: BoxFit.cover);
+    }
+    // 2. Google account photo.
+    if (googlePhotoUrl != null) {
+      return CachedNetworkImage(
+        imageUrl: googlePhotoUrl,
+        fit: BoxFit.cover,
+        placeholder: (_, __) => _AvatarFallback(initial: initial),
+        errorWidget: (_, __, ___) => _AvatarFallback(initial: initial),
+      );
+    }
+    // 3. Gradient + initial.
+    return _AvatarFallback(initial: initial);
+  }
+}
+
+class _AvatarFallback extends StatelessWidget {
+  const _AvatarFallback({required this.initial});
+
+  final String initial;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.avatarFill, AppColors.orbitDark],
+        ),
+      ),
+      child: Center(
+        child: Text(
+          initial,
+          style: AppTextStyles.bodyMedium16.copyWith(
+            color: AppColors.white,
+            fontSize: 22,
+            height: 1,
+          ),
+        ),
       ),
     );
   }

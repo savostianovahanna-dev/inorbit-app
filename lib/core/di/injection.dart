@@ -25,12 +25,20 @@ import '../../domain/usecases/watch_friends.dart';
 import '../../bloc/home/home_bloc.dart';
 import '../../bloc/stats/stats_bloc.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
+import '../services/user_profile_service.dart';
 
 final getIt = GetIt.instance;
 
 void setupDependencies() {
   // Auth service — wraps Firebase Auth + Google/Apple sign-in
   getIt.registerLazySingleton<AuthService>(() => AuthService());
+
+  // User profile service — reads/writes to Firestore users/{uid}
+  getIt.registerLazySingleton<UserProfileService>(() => UserProfileService());
+
+  // Notification service — schedules local birthday reminders
+  getIt.registerSingleton<NotificationService>(NotificationService.instance);
 
   // Database — one connection for the app's lifetime
   getIt.registerSingleton<AppDatabase>(AppDatabase());

@@ -1,13 +1,23 @@
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../../../core/di/injection.dart';
+import '../../../core/services/user_profile_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared/widgets/ghost_button.dart';
 
 /// Figma: node 65-6762 "Edit profile"
 /// Opened from Settings → "Edit profile" tap.
+/// Pops with [true] when a save was performed so the caller can refresh.
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({
     super.key,
-    this.initialName = 'Elena V.',
+    this.initialName = '',
   });
 
   final String initialName;
@@ -19,10 +29,17 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameCtrl;
 
+  /// Locally picked image — overrides Google photo until saved.
+  File? _pickedImage;
+  bool _saving = false;
+
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.initialName);
+    // Pre-fill with any previously picked path (in-memory cache).
+    final cached = getIt<UserProfileService>().localAvatarPath;
+    if (cached != null) _pickedImage = File(cached);
   }
 
   @override
@@ -31,9 +48,68 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  // ── Photo picker ─────────────────────────────────────────────────────────
+
+  void _openPhotoPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: const Color(0xFF222222).withValues(alpha: 0.5),
+      isScrollControlled: true,
+      builder: (_) => _ProfilePhotoSheet(
+        onPhotoSelected: (file) {
+          setState(() => _pickedImage = File(file.path));
+        },
+      ),
+    );
+  }
+
+  // ── Save ─────────────────────────────────────────────────────────────────
+
+  Future<void> _save() async {
+    if (_saving) return;
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) return;
+
+    setState(() => _saving = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Update Firebase Auth display name.
+        await user.updateDisplayName(name);
+
+        // Build the Firestore patch.
+        final patch = <String, dynamic>{'name': name};
+        if (_pickedImage != null) {
+          patch['avatarPath'] = _pickedImage!.path;
+        }
+        await getIt<UserProfileService>().save(user.uid, patch);
+
+        // Update in-memory cache so Settings reflects change immediately.
+        if (_pickedImage != null) {
+          getIt<UserProfileService>().localAvatarPath = _pickedImage!.path;
+        }
+      }
+    } catch (e) {
+      debugPrint('EditProfile save error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+        // Pop with true so the Settings screen knows to rebuild.
+        Navigator.pop(context, true);
+      }
+    }
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
+    final photoUrl = FirebaseAuth.instance.currentUser?.photoURL;
+    final name = _nameCtrl.text;
+    final initial =
+        name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -44,21 +120,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header ──────────────────────────────────────────────────────
+              // ── Header ────────────────────────────────────────────────────
               _EditProfileHeader(onBack: () => Navigator.pop(context)),
               const SizedBox(height: 20),
 
-              // ── Avatar + tap label ───────────────────────────────────────────
-              _AvatarSection(name: _nameCtrl.text),
+              // ── Avatar ────────────────────────────────────────────────────
+              _AvatarSection(
+                pickedImage: _pickedImage,
+                googlePhotoUrl: photoUrl,
+                initial: initial,
+                onTap: _openPhotoPicker,
+              ),
               const SizedBox(height: 20),
 
-              // ── Name input ───────────────────────────────────────────────────
+              // ── Name input ────────────────────────────────────────────────
               _NameInput(controller: _nameCtrl),
 
               const Spacer(),
 
-              // ── Save button ──────────────────────────────────────────────────
-              _SaveButton(onTap: () => Navigator.pop(context)),
+              // ── Save button ───────────────────────────────────────────────
+              _SaveButton(saving: _saving, onTap: _save),
             ],
           ),
         ),
@@ -80,7 +161,6 @@ class _EditProfileHeader extends StatelessWidget {
       height: 40,
       child: Row(
         children: [
-          // Back button
           GestureDetector(
             onTap: onBack,
             child: Container(
@@ -98,15 +178,11 @@ class _EditProfileHeader extends StatelessWidget {
               ),
             ),
           ),
-
-          // Title (centered in remaining space)
           Expanded(
             child: Center(
               child: Text('Edit Profile', style: AppTextStyles.headerTitle),
             ),
           ),
-
-          // Invisible spacer to balance the back button
           const SizedBox(width: 40),
         ],
       ),
@@ -137,52 +213,90 @@ class _BackChevronPainter extends CustomPainter {
 // ─── Avatar section ───────────────────────────────────────────────────────────
 
 class _AvatarSection extends StatelessWidget {
-  const _AvatarSection({required this.name});
+  const _AvatarSection({
+    required this.pickedImage,
+    required this.googlePhotoUrl,
+    required this.initial,
+    required this.onTap,
+  });
 
-  final String name;
-
-  String get _initial =>
-      name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
+  final File? pickedImage;
+  final String? googlePhotoUrl;
+  final String initial;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final hasPhoto = pickedImage != null || googlePhotoUrl != null;
+
     return Center(
       child: Column(
         children: [
-          // 100×100 circle avatar
-          Container(
-            width: 100,
-            height: 100,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.avatarFill, AppColors.orbitDark],
-              ),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Center(
-              child: Text(
-                _initial,
-                style: const TextStyle(
-                  fontFamily: 'DM Sans',
-                  fontSize: 38,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                  height: 1,
-                ),
-              ),
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: const BoxDecoration(shape: BoxShape.circle),
+              clipBehavior: Clip.antiAlias,
+              child: _buildAvatar(),
             ),
           ),
           const SizedBox(height: 6),
-
-          // Caption
           Text(
-            'Tap to add photo',
+            hasPhoto ? 'Tap to change photo' : 'Tap to add photo',
             style: AppTextStyles.settingsRowSubtitle,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar() {
+    // 1. Locally picked image takes highest priority.
+    if (pickedImage != null) {
+      return Image.file(pickedImage!, fit: BoxFit.cover);
+    }
+    // 2. Google account photo.
+    if (googlePhotoUrl != null) {
+      return CachedNetworkImage(
+        imageUrl: googlePhotoUrl!,
+        fit: BoxFit.cover,
+        placeholder: (_, __) => _GradientInitial(initial: initial),
+        errorWidget: (_, __, ___) => _GradientInitial(initial: initial),
+      );
+    }
+    // 3. Gradient + initial fallback.
+    return _GradientInitial(initial: initial);
+  }
+}
+
+class _GradientInitial extends StatelessWidget {
+  const _GradientInitial({required this.initial});
+
+  final String initial;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.avatarFill, AppColors.orbitDark],
+        ),
+      ),
+      child: Center(
+        child: Text(
+          initial,
+          style: const TextStyle(
+            fontFamily: 'DM Sans',
+            fontSize: 38,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+            height: 1,
+          ),
+        ),
       ),
     );
   }
@@ -200,14 +314,12 @@ class _NameInput extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Label
         Text('Name', style: AppTextStyles.tagLabel),
         const SizedBox(height: 8),
-
-        // Input box
         Container(
           decoration: BoxDecoration(
-            color: AppColors.white,
+            // Transparent so the background colour shows through.
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.divider, width: 0.63),
           ),
@@ -223,6 +335,8 @@ class _NameInput extends StatelessWidget {
                 fontSize: 14,
                 color: AppColors.textPrimary.withValues(alpha: 0.35),
               ),
+              // No fill — keeps the field transparent.
+              filled: false,
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -239,19 +353,19 @@ class _NameInput extends StatelessWidget {
 // ─── Save button ──────────────────────────────────────────────────────────────
 
 class _SaveButton extends StatelessWidget {
-  const _SaveButton({required this.onTap});
+  const _SaveButton({required this.onTap, this.saving = false});
 
   final VoidCallback onTap;
+  final bool saving;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: saving ? null : onTap,
       child: Container(
         width: double.infinity,
         height: 56,
         decoration: BoxDecoration(
-          // #0F172A — deep navy from Figma (AppColors.buttonDark)
           color: AppColors.buttonDark,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
@@ -263,10 +377,114 @@ class _SaveButton extends StatelessWidget {
           ],
         ),
         child: Center(
-          child: Text(
-            'Save',
-            style: AppTextStyles.logButtonLabel,
-          ),
+          child: saving
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text('Save', style: AppTextStyles.logButtonLabel),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Profile photo picker sheet ───────────────────────────────────────────────
+
+/// Simple bottom sheet for picking a profile photo — camera or gallery only.
+/// No planet selection (unlike the friend avatar picker).
+class _ProfilePhotoSheet extends StatefulWidget {
+  const _ProfilePhotoSheet({required this.onPhotoSelected});
+
+  final void Function(XFile file) onPhotoSelected;
+
+  @override
+  State<_ProfilePhotoSheet> createState() => _ProfilePhotoSheetState();
+}
+
+class _ProfilePhotoSheetState extends State<_ProfilePhotoSheet> {
+  final _picker = ImagePicker();
+  bool _loading = false;
+
+  Future<void> _pick(ImageSource source) async {
+    setState(() => _loading = true);
+    try {
+      final file = await _picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 600,
+        maxHeight: 600,
+      );
+      if (file != null && mounted) {
+        widget.onPhotoSelected(file);
+        Navigator.pop(context);
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+      child: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.all(Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Container(
+                width: 80,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: AppColors.cardBorder,
+                  borderRadius: BorderRadius.circular(100),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text('Profile photo', style: AppTextStyles.headerTitle),
+            ),
+            // Buttons
+            Padding(
+              padding: EdgeInsets.fromLTRB(15, 0, 15, 16 + bottomPad),
+              child: _loading
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: CircularProgressIndicator(
+                        color: AppColors.textPrimary,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        GhostButton(
+                          label: 'Take a photo',
+                          onTap: () => _pick(ImageSource.camera),
+                        ),
+                        const SizedBox(height: 8),
+                        GhostButton(
+                          label: 'Choose from library',
+                          onTap: () => _pick(ImageSource.gallery),
+                        ),
+                      ],
+                    ),
+            ),
+          ],
         ),
       ),
     );

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/di/injection.dart';
+import '../../../core/services/notification_service.dart';
+import '../../../core/services/user_profile_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/usecases/sync_data.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -13,7 +15,7 @@ import '../../settings/screens/settings_screen.dart';
 import '../../stats/screens/stats_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/home_app_bar.dart';
-import '../widgets/friends_scroll_row.dart';
+import '../widgets/friend_card.dart';
 import '../widgets/orbit_widget.dart';
 
 // ─── Root screen ──────────────────────────────────────────────────────────────
@@ -56,24 +58,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // BlocProvider lives above the Scaffold so the bloc survives tab switches.
     return BlocProvider<HomeBloc>(
       create: (_) => getIt<HomeBloc>()..add(const HomeStarted()),
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              Expanded(
-                child: switch (_activeTab) {
-                  NavTab.settings => const SettingsContent(),
-                  NavTab.stats => const StatsContent(),
-                  NavTab.orbit => const _OrbitTab(),
-                },
-              ),
-              HomeBottomNavBar(
-                activeTab: _activeTab,
-                onTabChanged: (tab) => setState(() => _activeTab = tab),
-              ),
-            ],
+      child: BlocListener<HomeBloc, HomeState>(
+        // Reschedule birthday notifications whenever the friends list changes.
+        listenWhen: (_, current) => current is HomeLoaded,
+        listener: (_, state) {
+          if (state is HomeLoaded) {
+            final birthdaysEnabled =
+                getIt<UserProfileService>().birthdaysEnabled;
+            getIt<NotificationService>().scheduleBirthdayReminders(
+              state.friends,
+              globalEnabled: birthdaysEnabled,
+            );
+          }
+        },
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          body: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                Expanded(
+                  child: switch (_activeTab) {
+                    NavTab.settings => const SettingsContent(),
+                    NavTab.stats => const StatsContent(),
+                    NavTab.orbit => const _OrbitTab(),
+                  },
+                ),
+                HomeBottomNavBar(
+                  activeTab: _activeTab,
+                  onTabChanged: (tab) => setState(() => _activeTab = tab),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -119,84 +135,97 @@ class _LoadedView extends StatelessWidget {
 
   final List<Friend> friends;
 
+  static const _kCardH = 177.0;
+
   @override
   Widget build(BuildContext context) {
     if (friends.isEmpty) return _EmptyOrbitView();
 
     final overdueCount = friends.where((f) => f.isOverdue).length;
 
-    // Friends are ordered by overdue score — first entry is the most overdue.
-    final mostOverdue =
-        friends.isNotEmpty && friends.first.isOverdue ? friends.first : null;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Orbit takes ~42 % of the available height, never less than 200 px.
+        final orbitH = (constraints.maxHeight * 0.42).clamp(200.0, double.infinity);
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header ───────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: HomeAppBar(
-              onAddFriend:
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AddFriendScreen()),
-                  ),
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // ── Orbit visualization ───────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: OrbitWidget(
-              friends: friends,
-              userInitials: 'You',
-              onFriendTap: (friend) => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => FriendScreen(friend: friend)),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Header ───────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: HomeAppBar(
+                onAddFriend: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
-          // ── Subtitle ─────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              _subtitle(friends.length, overdueCount),
-              style: AppTextStyles.bodyRegular14.copyWith(
-                fontSize: 12,
-                color: const Color(0xFFAEAEB2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // ── Friends horizontal scroll ─────────────────────────────────────
-          FriendsScrollRow(
-            friends: friends,
-            onFriendTap:
-                (friend) => Navigator.push(
+            // ── Orbit (fixed proportion of screen) ───────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: OrbitWidget(
+                friends: friends,
+                userInitials: 'You',
+                height: orbitH,
+                onFriendTap: (friend) => Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => FriendScreen(friend: friend),
                   ),
                 ),
-          ),
-
-          // ── Attention card (most overdue friend only) ─────────────────────
-          if (mostOverdue != null) ...[
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              child: _AttentionCard(friend: mostOverdue),
+              ),
             ),
-          ] else
-            const SizedBox(height: 24),
-        ],
-      ),
+            const SizedBox(height: 12),
+
+            // ── Subtitle ─────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                _subtitle(friends.length, overdueCount),
+                style: AppTextStyles.bodyRegular14.copyWith(
+                  fontSize: 12,
+                  color: const Color(0xFFAEAEB2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── Friends 2-column grid — scrolls to show every friend ──────────
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                physics: const BouncingScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  mainAxisExtent: _kCardH,
+                ),
+                itemCount: friends.length,
+                itemBuilder: (context, index) {
+                  final friend = friends[index];
+                  return FriendCard(
+                    friend: friend,
+                    lastMeetingType: null,
+                    daysSinceContact: friend.lastConnectedAt != null
+                        ? friend.daysSinceContact
+                        : null,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FriendScreen(friend: friend),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -314,55 +343,3 @@ class _EmptyOrbitView extends StatelessWidget {
   }
 }
 
-// ─── Attention card ───────────────────────────────────────────────────────────
-
-class _AttentionCard extends StatelessWidget {
-  const _AttentionCard({required this.friend});
-
-  final Friend friend;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text.rich(
-            TextSpan(
-              style: AppTextStyles.bodyMedium16,
-              children: [
-                const TextSpan(text: '✨  '),
-                TextSpan(
-                  text: friend.name,
-                  style: AppTextStyles.bodyMedium16.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'A simple hello is enough to keep the connection alive.',
-            style: AppTextStyles.bodyRegular14,
-          ),
-        ],
-      ),
-    );
-  }
-}

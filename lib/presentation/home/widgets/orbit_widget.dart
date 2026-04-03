@@ -44,12 +44,15 @@ class OrbitWidget extends StatefulWidget {
     this.userAvatarPath,
     required this.userInitials,
     this.onFriendTap,
+    this.height,
   });
 
   final List<Friend> friends;
   final String? userAvatarPath;
   final String userInitials;
   final ValueChanged<Friend>? onFriendTap;
+  /// When provided, overrides the default height calculation.
+  final double? height;
 
   @override
   State<OrbitWidget> createState() => _OrbitWidgetState();
@@ -92,11 +95,13 @@ class _OrbitWidgetState extends State<OrbitWidget>
         final w = constraints.maxWidth;
         final cx = w / 2;
 
-        // At least 50 % of the screen height, never less than the original 220 px.
-        final containerH = math.max(
-          _kContainerH,
-          MediaQuery.of(context).size.height * 0.5,
-        );
+        // Use explicit height if provided, otherwise at least 50 % of screen
+        // height and never less than the original 220 px.
+        final containerH = widget.height ??
+            math.max(
+              _kContainerH,
+              MediaQuery.of(context).size.height * 0.5,
+            );
         final cy = containerH / 2;
 
         return ClipRRect(
