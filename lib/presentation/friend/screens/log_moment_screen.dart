@@ -43,8 +43,10 @@ class _LogMomentScreenState extends State<LogMomentScreen> {
   void _onNotesFocusChanged() {
     if (_notesFocusNode.hasFocus) {
       Future.delayed(const Duration(milliseconds: 400), () {
+        if (!mounted) return;
         final ctx = _notesKey.currentContext;
         if (ctx != null) {
+          // ignore: use_build_context_synchronously
           Scrollable.ensureVisible(
             ctx,
             alignment: 0.0,

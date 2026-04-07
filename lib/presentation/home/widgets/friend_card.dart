@@ -285,13 +285,13 @@ class _DashPainter extends CustomPainter {
 /// Uses [String.runes] to safely handle multi-byte characters (emoji, etc.)
 /// and avoid producing invalid UTF-16 surrogate pairs.
 String _initials(String name) {
-  String _firstChar(String s) =>
+  String firstChar(String s) =>
       s.isEmpty ? '' : String.fromCharCode(s.runes.first).toUpperCase();
 
   final parts = name.trim().split(RegExp(r'\s+'));
   if (parts.isEmpty) return '?';
-  if (parts.length == 1) return _firstChar(parts[0]);
-  return '${_firstChar(parts[0])}${_firstChar(parts.last)}';
+  if (parts.length == 1) return firstChar(parts[0]);
+  return '${firstChar(parts[0])}${firstChar(parts.last)}';
 }
 
 String _tierLabel(String tier) => switch (tier) {

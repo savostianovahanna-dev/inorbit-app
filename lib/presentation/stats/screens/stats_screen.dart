@@ -7,24 +7,13 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../domain/entities/friend.dart';
 import '../../../domain/entities/stats_data.dart';
-
-// ─── Activity-grid colour palette (spec) ─────────────────────────────────────
-
-const _kEmpty = Color(0xFFEBEBED);
-const _kLight = Color(0xFFB8C9DC);
-const _kMed = Color(0xFF7A9CBF);
-const _kDark = Color(0xFF1E3A6E);
+import '../widgets/constellation_activity_section.dart';
 
 // ─── Status-dot colours (spec) ────────────────────────────────────────────────
 
 const _kStatusRed = Color(0xFFC0645A);
 const _kStatusAmber = Color(0xFFC4985A);
 const _kStatusGreen = Color(0xFF5B8A7D);
-
-// ─── Grid constants ───────────────────────────────────────────────────────────
-
-const _kNumCols = 16; // weeks shown
-const _kNumRows = 7; // days per week (Mon → Sun)
 
 // ─── Root content widget ──────────────────────────────────────────────────────
 
@@ -82,7 +71,7 @@ class _StatsBody extends StatelessWidget {
         children: [
           _HeroCard(data: data),
           const SizedBox(height: 20),
-          _ActivitySection(activityByDay: data.activityByDay),
+          ConstellationActivitySection(activityByDay: data.activityByDay),
           const SizedBox(height: 20),
           _OrbitHealthSection(friends: data.friendsOrderedByOverdue),
         ],
@@ -109,7 +98,7 @@ class _HeroCard extends StatelessWidget {
 
   String _connectedValue(Friend? f, int count) {
     if (f == null) return '—';
-    return '${_firstName(f.name)} · ${count}×';
+    return '${_firstName(f.name)} · $count×';
   }
 
   @override
@@ -296,191 +285,6 @@ class _HeroOrbitsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_HeroOrbitsPainter old) => false;
-}
-
-// ─── Activity section ─────────────────────────────────────────────────────────
-
-class _ActivitySection extends StatelessWidget {
-  const _ActivitySection({required this.activityByDay});
-
-  final Map<DateTime, int> activityByDay;
-
-  // ── Grid builder ────────────────────────────────────────────────────────────
-
-  /// Returns a [_kNumCols] × [_kNumRows] grid where each cell is the clamped
-  /// moment count (0–3) for that calendar day, plus the grid's start date.
-  static (List<List<int>>, DateTime) _buildGrid(
-    Map<DateTime, int> activityByDay,
-  ) {
-    final today = DateTime.now();
-    final todayDate = DateTime(today.year, today.month, today.day);
-
-    // Align to the Monday of the current week.
-    final currentWeekMonday =
-        todayDate.subtract(Duration(days: todayDate.weekday - 1));
-
-    // Go back 15 more weeks so the total is _kNumCols (16) weeks.
-    final startDate =
-        currentWeekMonday.subtract(const Duration(days: 15 * 7));
-
-    final grid = List.generate(_kNumCols, (col) {
-      return List.generate(_kNumRows, (row) {
-        final date = startDate.add(Duration(days: col * _kNumRows + row));
-        if (date.isAfter(todayDate)) return 0; // future cell → empty
-        final count = activityByDay[date] ?? 0;
-        return count.clamp(0, 3);
-      });
-    });
-
-    return (grid, startDate);
-  }
-
-  /// Returns a map of column-index → month abbreviation for the first column
-  /// where each new month begins inside the grid.
-  static Map<int, String> _buildMonthLabels(DateTime startDate) {
-    const abbr = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    final result = <int, String>{};
-    int? prevMonth;
-    for (var col = 0; col < _kNumCols; col++) {
-      final colStart = startDate.add(Duration(days: col * _kNumRows));
-      if (colStart.month != prevMonth) {
-        result[col] = abbr[colStart.month - 1];
-        prevMonth = colStart.month;
-      }
-    }
-    return result;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final (grid, startDate) = _buildGrid(activityByDay);
-    final monthLabels = _buildMonthLabels(startDate);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Opacity(
-          opacity: 0.75,
-          child: Text('Activity', style: AppTextStyles.bodyMedium16),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _ActivityGrid(grid: grid),
-                const SizedBox(height: 8),
-                _MonthLabels(labels: monthLabels),
-                const SizedBox(height: 12),
-                Text(
-                  'Each square = one connection',
-                  style: AppTextStyles.settingsRowSubtitle.copyWith(
-                    fontSize: 12,
-                    color: AppColors.cardBorder,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ActivityGrid extends StatelessWidget {
-  const _ActivityGrid({required this.grid});
-
-  /// grid[col][row] — 0 = empty, 1 = light, 2 = medium, 3 = dark
-  final List<List<int>> grid;
-
-  static Color _cellColor(int level) => switch (level) {
-    1 => _kLight,
-    2 => _kMed,
-    3 => _kDark,
-    _ => _kEmpty,
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      const gap = 3.0;
-      final numCols = grid.length;
-      final cellSize =
-          (constraints.maxWidth - gap * (numCols - 1)) / numCols;
-      final radius = cellSize * 0.2;
-
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: List.generate(numCols, (col) {
-          final rows = grid[col];
-          return Column(
-            children: List.generate(rows.length, (row) {
-              return Padding(
-                padding:
-                    EdgeInsets.only(bottom: row < rows.length - 1 ? gap : 0),
-                child: Container(
-                  width: cellSize,
-                  height: cellSize,
-                  decoration: BoxDecoration(
-                    color: _cellColor(rows[row]),
-                    borderRadius: BorderRadius.circular(radius),
-                  ),
-                ),
-              );
-            }),
-          );
-        }),
-      );
-    });
-  }
-}
-
-class _MonthLabels extends StatelessWidget {
-  const _MonthLabels({required this.labels});
-
-  /// column-index → abbreviation, e.g. {0: 'Nov', 4: 'Dec', …}
-  final Map<int, String> labels;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      const gap = 3.0;
-      const numCols = _kNumCols;
-      final totalWidth = constraints.maxWidth;
-      final cellSize = (totalWidth - gap * (numCols - 1)) / numCols;
-      final colStep = cellSize + gap;
-
-      return Stack(
-        children: [
-          SizedBox(width: totalWidth, height: 16),
-          for (final entry in labels.entries)
-            Positioned(
-              left: entry.key * colStep,
-              top: 0,
-              child: Text(
-                entry.value,
-                style: AppTextStyles.settingsRowSubtitle.copyWith(
-                  fontSize: 12,
-                  color: AppColors.cardBorder,
-                ),
-              ),
-            ),
-        ],
-      );
-    });
-  }
 }
 
 // ─── Orbit health section ─────────────────────────────────────────────────────

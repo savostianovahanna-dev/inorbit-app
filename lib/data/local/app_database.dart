@@ -44,7 +44,7 @@ class MomentsTable extends Table {
   DateTimeColumn get date => dateTime()();
   TextColumn get note => text().nullable()();
 
-  /// JSON-encoded List<String> of local file paths.
+  /// JSON-encoded `List<String>` of local file paths.
   TextColumn get photoPaths => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
 

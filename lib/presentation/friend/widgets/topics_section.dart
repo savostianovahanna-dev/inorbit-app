@@ -55,8 +55,10 @@ class _TopicsSectionState extends State<TopicsSection> {
     if (_inputFocus.hasFocus) {
       // Wait for keyboard to fully appear, then scroll to show the input.
       Future.delayed(const Duration(milliseconds: 400), () {
+        if (!mounted) return;
         final ctx = _inputKey.currentContext;
         if (ctx != null) {
+          // ignore: use_build_context_synchronously
           Scrollable.ensureVisible(
             ctx,
             alignment: 0.0,

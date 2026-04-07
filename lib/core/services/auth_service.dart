@@ -25,9 +25,9 @@ class AuthService {
       );
 
       _googleInitialized = true;
-      print('Google Sign-In успішно ініціалізовано');
+      debugPrint('Google Sign-In успішно ініціалізовано');
     } catch (e) {
-      print('Помилка ініціалізації Google Sign-In: $e');
+      debugPrint('Помилка ініціалізації Google Sign-In: $e');
       rethrow;
     }
   }
@@ -46,12 +46,7 @@ class AuthService {
     await _ensureGoogleInitialized();
 
     try {
-      final GoogleSignInAccount? googleUser =
-          await _googleSignIn.authenticate();
-
-      if (googleUser == null) {
-        return null; // користувач скасував
-      }
+      final googleUser = await _googleSignIn.authenticate();
 
       // Отримуємо деталі аутентифікації (idToken тут!)
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
@@ -66,7 +61,7 @@ class AuthService {
       }
       return userCredential;
     } on Exception catch (e, stack) {
-      print('Google Sign-In error: $e\n$stack');
+      debugPrint('Google Sign-In error: $e\n$stack');
       return null;
     }
   }

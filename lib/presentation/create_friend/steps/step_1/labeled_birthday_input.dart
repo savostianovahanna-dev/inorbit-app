@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:inorbit/core/theme/app_colors.dart';
 import 'package:inorbit/core/theme/app_text_styles.dart';
 import 'package:inorbit/presentation/create_friend/widgets/input_box.dart';
