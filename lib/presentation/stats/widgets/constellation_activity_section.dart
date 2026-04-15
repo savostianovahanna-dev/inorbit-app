@@ -8,6 +8,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gal/gal.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:inorbit/core/theme/app_text_styles.dart';
+import 'package:inorbit/domain/entities/friend.dart';
+import 'package:inorbit/domain/entities/moment.dart';
 import 'package:share_plus/share_plus.dart';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -216,9 +218,16 @@ _GridData _buildRows({
 // ─── Public widget ────────────────────────────────────────────────────────────
 
 class ConstellationActivitySection extends StatefulWidget {
-  const ConstellationActivitySection({super.key, required this.activityByDay});
+  const ConstellationActivitySection({
+    super.key,
+    required this.activityByDay,
+    required this.momentsByDay,
+    required this.friends,
+  });
 
   final Map<DateTime, int> activityByDay;
+  final Map<DateTime, List<Moment>> momentsByDay;
+  final List<Friend> friends;
 
   @override
   State<ConstellationActivitySection> createState() =>
@@ -329,6 +338,8 @@ class _ConstellationActivitySectionState
                         gridData: gridData,
                         pulseAnim: _pulseAnim,
                         captureMode: _isCapturing,
+                        momentsByDay: widget.momentsByDay,
+                        friends: widget.friends,
                       ),
                     ),
                   ),
@@ -408,12 +419,16 @@ class _ConstellationGrid extends StatelessWidget {
     required this.gridData,
     required this.pulseAnim,
     this.captureMode = false,
+    required this.momentsByDay,
+    required this.friends,
   });
 
   final _GridData gridData;
   final Animation<double> pulseAnim;
   /// When true, empty cells are transparent — used during screenshot capture.
   final bool captureMode;
+  final Map<DateTime, List<Moment>> momentsByDay;
+  final List<Friend> friends;
 
   @override
   Widget build(BuildContext context) {
@@ -464,15 +479,43 @@ class _ConstellationGrid extends StatelessWidget {
               final cellInfo = activeMap[key];
               final isActive = cellInfo != null;
 
+              // Compute the calendar date for this cell.
+              final cellDate = row.rowStartDate.add(
+                Duration(days: col * 7 + day),
+              );
+              final cellDateKey = DateTime(
+                cellDate.year,
+                cellDate.month,
+                cellDate.day,
+              );
+
               cells.add(
                 Positioned(
                   left: col * stride,
                   top: rowTopY + _kLabelH + day * stride,
                   child: isActive
-                      ? _StarCell(
-                          pulseAnim: pulseAnim,
-                          staggerOffset: (cellInfo.starIndex * 0.13) % 1.0,
-                          cellSize: cellSize,
+                      ? GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: captureMode
+                              ? null
+                              : () {
+                                  final dayMoments =
+                                      momentsByDay[cellDateKey] ?? [];
+                                  debugPrint(
+                                    '[Activity tap] date=$cellDateKey  moments=${dayMoments.length}',
+                                  );
+                                  _showDayPopup(
+                                    context,
+                                    cellDateKey,
+                                    dayMoments,
+                                    friends,
+                                  );
+                                },
+                          child: _StarCell(
+                            pulseAnim: pulseAnim,
+                            staggerOffset: (cellInfo.starIndex * 0.13) % 1.0,
+                            cellSize: cellSize,
+                          ),
                         )
                       : captureMode
                           // Transparent placeholder — keeps layout intact
@@ -490,13 +533,17 @@ class _ConstellationGrid extends StatelessWidget {
           child: Stack(
             children: [
               ...cells,
+              // IgnorePointer so the dotted-lines overlay doesn't
+              // swallow taps meant for the star cells underneath.
               Positioned.fill(
-                child: CustomPaint(
-                  painter: _DottedLinesPainter(
-                    activeCells: gridData.activeCells,
-                    colH: colH,
-                    stride: stride,
-                    cellSize: cellSize,
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _DottedLinesPainter(
+                      activeCells: gridData.activeCells,
+                      colH: colH,
+                      stride: stride,
+                      cellSize: cellSize,
+                    ),
                   ),
                 ),
               ),
@@ -703,4 +750,222 @@ class _DottedLinesPainter extends CustomPainter {
       old.colH != colH ||
       old.stride != stride ||
       old.cellSize != cellSize;
+}
+
+// ─── Day moments popup ────────────────────────────────────────────────────────
+
+void _showDayPopup(
+  BuildContext context,
+  DateTime date,
+  List<Moment> moments,
+  List<Friend> friends,
+) {
+  showDialog<void>(
+    context: context,
+    builder: (_) => _DayMomentsPopup(
+      date: date,
+      moments: moments,
+      friends: friends,
+    ),
+  );
+}
+
+class _DayMomentsPopup extends StatelessWidget {
+  const _DayMomentsPopup({
+    required this.date,
+    required this.moments,
+    required this.friends,
+  });
+
+  final DateTime date;
+  final List<Moment> moments;
+  final List<Friend> friends;
+
+  static const _typeEmoji = {
+    'coffee': '☕',
+    'call': '📞',
+    'text': '💬',
+    'dinner': '🍽',
+    'movie': '🎬',
+    'shopping': '🛍',
+    'other': '✨',
+  };
+
+  static const _typeLabel = {
+    'coffee': 'Coffee',
+    'call': 'Call',
+    'text': 'Text',
+    'dinner': 'Dinner',
+    'movie': 'Movie',
+    'shopping': 'Shopping',
+    'other': 'Other',
+  };
+
+  static const _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+
+  String get _formattedDate =>
+      '${_monthNames[date.month - 1]} ${date.day}, ${date.year}';
+
+  @override
+  Widget build(BuildContext context) {
+    final friendNames = {for (final f in friends) f.id: f.name};
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Header ──────────────────────────────────────────────────
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _formattedDate,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF222222),
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: const Icon(
+                    Icons.close_rounded,
+                    size: 20,
+                    color: Color(0xFF96A8C2),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(height: 1, color: const Color(0xFFE2E8F0)),
+            const SizedBox(height: 12),
+
+            // ── Moments list ─────────────────────────────────────────────
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 380),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (int i = 0; i < moments.length; i++) ...[
+                      _MomentRow(
+                        moment: moments[i],
+                        friendName:
+                            friendNames[moments[i].friendId] ?? 'Unknown',
+                        typeEmoji: _typeEmoji,
+                        typeLabel: _typeLabel,
+                      ),
+                      if (i < moments.length - 1)
+                        Container(
+                          height: 1,
+                          margin: const EdgeInsets.symmetric(vertical: 10),
+                          color: const Color(0xFFE2E8F0),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MomentRow extends StatelessWidget {
+  const _MomentRow({
+    required this.moment,
+    required this.friendName,
+    required this.typeEmoji,
+    required this.typeLabel,
+  });
+
+  final Moment moment;
+  final String friendName;
+  final Map<String, String> typeEmoji;
+  final Map<String, String> typeLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final emoji = typeEmoji[moment.type] ?? '✨';
+    final label =
+        moment.type == 'other' && moment.customType != null
+            ? moment.customType!
+            : (typeLabel[moment.type] ?? 'Other');
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Emoji badge
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5F5F7),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: Text(emoji, style: const TextStyle(fontSize: 16)),
+        ),
+        const SizedBox(width: 12),
+
+        // Text info
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF222222),
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '· $friendName',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF96A8C2),
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+              if (moment.note != null && moment.note!.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  moment.note!,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF334155),
+                    height: 1.4,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }

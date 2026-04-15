@@ -71,7 +71,11 @@ class _StatsBody extends StatelessWidget {
         children: [
           _HeroCard(data: data),
           const SizedBox(height: 20),
-          ConstellationActivitySection(activityByDay: data.activityByDay),
+          ConstellationActivitySection(
+            activityByDay: data.activityByDay,
+            momentsByDay: data.momentsByDay,
+            friends: data.friendsOrderedByOverdue,
+          ),
           const SizedBox(height: 20),
           _OrbitHealthSection(friends: data.friendsOrderedByOverdue),
         ],

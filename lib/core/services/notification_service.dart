@@ -14,6 +14,8 @@ class NotificationService {
   static final NotificationService instance = NotificationService._();
 
   final _plugin = FlutterLocalNotificationsPlugin();
+  final _scheduledBirthdayIds = <int>{};
+  final _scheduledOrbitIds = <int>{};
 
   static const _iosDetails = DarwinNotificationDetails(
     presentAlert: true,
@@ -40,18 +42,18 @@ class NotificationService {
       requestSoundPermission: false,
     );
 
-    await _plugin.initialize(
-      const InitializationSettings(iOS: iosInit),
-    );
+    await _plugin.initialize(const InitializationSettings(iOS: iosInit));
   }
 
   // ── Permissions ─────────────────────────────────────────────────────────────
 
   /// Requests iOS notification permission. Returns true if granted.
   Future<bool> requestPermissions() async {
-    final ios = _plugin
-        .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>();
+    final ios =
+        _plugin
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >();
     final granted = await ios?.requestPermissions(
       alert: true,
       badge: true,
@@ -68,8 +70,11 @@ class NotificationService {
     List<Friend> friends, {
     required bool globalEnabled,
   }) async {
-    // Always cancel everything first so we start clean.
-    await _plugin.cancelAll();
+    // Cancel only previously scheduled birthday notifications (not test ones).
+    for (final id in _scheduledBirthdayIds) {
+      await _plugin.cancel(id);
+    }
+    _scheduledBirthdayIds.clear();
 
     if (!globalEnabled) return;
 
@@ -81,6 +86,23 @@ class NotificationService {
     debugPrint(
       '[NotificationService] Scheduled birthday reminders for '
       '${friends.where((f) => f.birthday != null && f.remindBirthday).length} friends.',
+    );
+  }
+
+  /// Cancels all existing orbit reminders and reschedules based on the current
+  /// [friends] list. Fires at 9 AM the day before each friend becomes overdue.
+  Future<void> scheduleOrbitReminders(List<Friend> friends) async {
+    for (final id in _scheduledOrbitIds) {
+      await _plugin.cancel(id);
+    }
+    _scheduledOrbitIds.clear();
+
+    for (final friend in friends) {
+      await _scheduleOrbitForFriend(friend);
+    }
+
+    debugPrint(
+      '[NotificationService] Scheduled orbit reminders for ${friends.length} friends.',
     );
   }
 
@@ -96,7 +118,9 @@ class NotificationService {
       now.year,
       birthday.month,
       birthday.day,
-      9, 0, 0,
+      9,
+      0,
+      0,
     ).subtract(const Duration(days: 1));
 
     // If today is past that date this year, push to next year.
@@ -106,12 +130,15 @@ class NotificationService {
         now.year + 1,
         birthday.month,
         birthday.day,
-        9, 0, 0,
+        9,
+        0,
+        0,
       ).subtract(const Duration(days: 1));
     }
 
     // Stable int ID — friends are identified by UUID strings, so hash them.
     final notifId = friend.id.hashCode.abs() % 100000;
+    _scheduledBirthdayIds.add(notifId);
 
     // Schedule for the next occurrence (one-shot).
     // Re-scheduling happens every time the app opens via HomeScreen's
@@ -125,6 +152,76 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  Future<void> _scheduleOrbitForFriend(Friend friend) async {
+    final baseline = friend.lastConnectedAt ?? friend.createdAt;
+    final now = tz.TZDateTime.now(tz.local);
+
+    // Fire at 9 AM on the last day of the check-in window (one day before overdue).
+    var reminderDate = tz.TZDateTime(
+      tz.local,
+      baseline.year,
+      baseline.month,
+      baseline.day,
+      9, 0, 0,
+    ).add(Duration(days: friend.frequencyDays - 1));
+
+    // Already past this window — skip (they're already overdue, shown in UI).
+    if (reminderDate.isBefore(now)) return;
+
+    // Orbit IDs are offset by 200000 to avoid colliding with birthday IDs.
+    final notifId = friend.id.hashCode.abs() % 100000 + 200000;
+    _scheduledOrbitIds.add(notifId);
+
+    await _plugin.zonedSchedule(
+      notifId,
+      '👋 Reach out to ${friend.name} soon',
+      "Tomorrow is the last day of your ${friend.frequencyDays}-day check-in window.",
+      reminderDate,
+      const NotificationDetails(iOS: _iosDetails),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  /// Schedules 3 test notifications to fire 1 minute from now.
+  /// Call once on startup to verify notifications are working, then remove.
+  Future<void> scheduleTestNotifications() async {
+    final now = tz.TZDateTime.now(tz.local);
+    final fireTime = now.add(const Duration(seconds: 10));
+
+    final tests = [
+      (99991, '🌟 Test: Friend Moment', 'Anna just posted a new moment!'),
+      (
+        99992,
+        '🎂 Test: Birthday Reminder',
+        "Jake's birthday is tomorrow — don't forget!",
+      ),
+      (
+        99993,
+        '💫 Test: Orbit Check-in',
+        "You haven't connected with Maria in a while.",
+      ),
+    ];
+
+    for (final (id, title, body) in tests) {
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        fireTime,
+        const NotificationDetails(iOS: _iosDetails),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    }
+
+    debugPrint(
+      '[NotificationService] 3 test notifications scheduled for $fireTime',
     );
   }
 

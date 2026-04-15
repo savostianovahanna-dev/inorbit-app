@@ -1,4 +1,5 @@
 import 'friend.dart';
+import 'moment.dart';
 
 /// Aggregated statistics passed to the Stats screen.
 class StatsData {
@@ -9,6 +10,7 @@ class StatsData {
     this.needsAttentionFriend,
     required this.friendsOrderedByOverdue,
     required this.activityByDay,
+    required this.momentsByDay,
   });
 
   /// Total number of friends in the user's orbit.
@@ -31,4 +33,8 @@ class StatsData {
   /// Total moments per calendar day.
   /// Keys are midnight-local DateTimes: DateTime(year, month, day).
   final Map<DateTime, int> activityByDay;
+
+  /// All moments grouped by calendar day.
+  /// Keys are midnight-local DateTimes: DateTime(year, month, day).
+  final Map<DateTime, List<Moment>> momentsByDay;
 }

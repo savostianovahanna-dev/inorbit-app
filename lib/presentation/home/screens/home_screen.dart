@@ -69,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               state.friends,
               globalEnabled: birthdaysEnabled,
             );
+            getIt<NotificationService>().scheduleOrbitReminders(state.friends);
           }
         },
         child: Scaffold(

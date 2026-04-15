@@ -112,9 +112,11 @@ class GetStatsUseCase {
 
     // ── Activity grid: all moments grouped by calendar day ───────────────
     final activityByDay = <DateTime, int>{};
+    final momentsByDay = <DateTime, List<Moment>>{};
     for (final m in allMoments) {
       final key = DateTime(m.date.year, m.date.month, m.date.day);
       activityByDay[key] = (activityByDay[key] ?? 0) + 1;
+      (momentsByDay[key] ??= []).add(m);
     }
 
     return StatsData(
@@ -124,6 +126,7 @@ class GetStatsUseCase {
       needsAttentionFriend: needsAttentionFriend,
       friendsOrderedByOverdue: List.unmodifiable(friends),
       activityByDay: Map.unmodifiable(activityByDay),
+      momentsByDay: Map.unmodifiable(momentsByDay),
     );
   }
 }
