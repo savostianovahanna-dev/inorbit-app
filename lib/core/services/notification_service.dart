@@ -187,44 +187,6 @@ class NotificationService {
     );
   }
 
-  /// Schedules 3 test notifications to fire 1 minute from now.
-  /// Call once on startup to verify notifications are working, then remove.
-  Future<void> scheduleTestNotifications() async {
-    final now = tz.TZDateTime.now(tz.local);
-    final fireTime = now.add(const Duration(seconds: 10));
-
-    final tests = [
-      (99991, '🌟 Test: Friend Moment', 'Anna just posted a new moment!'),
-      (
-        99992,
-        '🎂 Test: Birthday Reminder',
-        "Jake's birthday is tomorrow — don't forget!",
-      ),
-      (
-        99993,
-        '💫 Test: Orbit Check-in',
-        "You haven't connected with Maria in a while.",
-      ),
-    ];
-
-    for (final (id, title, body) in tests) {
-      await _plugin.zonedSchedule(
-        id,
-        title,
-        body,
-        fireTime,
-        const NotificationDetails(iOS: _iosDetails),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
-    }
-
-    debugPrint(
-      '[NotificationService] 3 test notifications scheduled for $fireTime',
-    );
-  }
-
   /// Best-effort detection of the device timezone name (e.g. "Europe/London").
   /// Falls back to "UTC" on error.
   Future<String> _detectLocalTimezone() async {

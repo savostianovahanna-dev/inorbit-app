@@ -13,8 +13,7 @@ void main() async {
   await Firebase.initializeApp();
   setupDependencies();
   await NotificationService.instance.init();
-  await NotificationService.instance.scheduleTestNotifications();
-  final currentUser = FirebaseAuth.instance.currentUser;
+final currentUser = FirebaseAuth.instance.currentUser;
   if (currentUser != null) {
     initRemoteRepositories(currentUser.uid);
     getIt<SyncData>().call().catchError((Object e) {

@@ -13,6 +13,7 @@ import '../../create_friend/screens/add_friend_screen.dart';
 import '../../friend/screens/friend_screen.dart';
 import '../../settings/screens/settings_screen.dart';
 import '../../stats/screens/stats_screen.dart';
+import '../widgets/birthday_notification_card.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/home_app_bar.dart';
 import '../widgets/friend_card.dart';
@@ -45,8 +46,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Sync from Firebase every time the app comes back to the foreground.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed &&
-        getIt.isRegistered<SyncData>()) {
+    if (state == AppLifecycleState.resumed && getIt.isRegistered<SyncData>()) {
       getIt<SyncData>().call().catchError((Object e) {
         debugPrint('Resume sync failed: $e');
       });
@@ -147,7 +147,10 @@ class _LoadedView extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         // Orbit takes ~42 % of the available height, never less than 200 px.
-        final orbitH = (constraints.maxHeight * 0.42).clamp(200.0, double.infinity);
+        final orbitH = (constraints.maxHeight * 0.42).clamp(
+          200.0,
+          double.infinity,
+        );
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,10 +159,13 @@ class _LoadedView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: HomeAppBar(
-                onAddFriend: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AddFriendScreen()),
-                ),
+                onAddFriend:
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AddFriendScreen(),
+                      ),
+                    ),
               ),
             ),
             const SizedBox(height: 8),
@@ -171,12 +177,13 @@ class _LoadedView extends StatelessWidget {
                 friends: friends,
                 userInitials: 'You',
                 height: orbitH,
-                onFriendTap: (friend) => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => FriendScreen(friend: friend),
-                  ),
-                ),
+                onFriendTap:
+                    (friend) => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FriendScreen(friend: friend),
+                      ),
+                    ),
               ),
             ),
             const SizedBox(height: 12),
@@ -194,40 +201,83 @@ class _LoadedView extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // ── Friends 2-column grid — scrolls to show every friend ──────────
+            // ── Friends list: birthday card(s) + 2-column grid ────────────
             Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              child: CustomScrollView(
                 physics: const BouncingScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  mainAxisExtent: _kCardH,
-                ),
-                itemCount: friends.length,
-                itemBuilder: (context, index) {
-                  final friend = friends[index];
-                  return FriendCard(
-                    friend: friend,
-                    lastMeetingType: null,
-                    daysSinceContact: friend.lastConnectedAt != null
-                        ? friend.daysSinceContact
-                        : null,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => FriendScreen(friend: friend),
+                slivers: [
+                  // Birthday notification cards (today or within 7 days)
+                  ..._upcomingBirthdays(friends).map(
+                    (entry) => SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      sliver: SliverToBoxAdapter(
+                        child: BirthdayNotificationCard(
+                          friend: entry.$1,
+                          daysUntil: entry.$2,
+                        ),
                       ),
                     ),
-                  );
-                },
+                  ),
+                  // Friends grid
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    sliver: SliverGrid.builder(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            mainAxisExtent: _kCardH,
+                          ),
+                      itemCount: friends.length,
+                      itemBuilder: (context, index) {
+                        final friend = friends[index];
+                        return FriendCard(
+                          friend: friend,
+                          lastMeetingType: null,
+                          daysSinceContact:
+                              friend.lastConnectedAt != null
+                                  ? friend.daysSinceContact
+                                  : null,
+                          onTap:
+                              () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => FriendScreen(friend: friend),
+                                ),
+                              ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         );
       },
     );
+  }
+
+  /// Returns friends whose birthday is today or within the next 7 days,
+  /// sorted by soonest first. Each entry is (friend, daysUntil).
+  static List<(Friend, int)> _upcomingBirthdays(List<Friend> friends) {
+    final today = DateTime.now();
+    final todayMidnight = DateTime(today.year, today.month, today.day);
+    final result = <(Friend, int)>[];
+    for (final f in friends) {
+      if (f.birthday == null) continue;
+      final bday = f.birthday!;
+      var next = DateTime(today.year, bday.month, bday.day);
+      if (next.isBefore(todayMidnight)) {
+        next = DateTime(today.year + 1, bday.month, bday.day);
+      }
+      final diff = next.difference(todayMidnight).inDays;
+      if (diff <= 7) result.add((f, diff));
+    }
+
+    result.sort((a, b) => a.$2.compareTo(b.$2));
+    return result;
   }
 
   static String _subtitle(int total, int overdue) {
@@ -343,4 +393,3 @@ class _EmptyOrbitView extends StatelessWidget {
     );
   }
 }
-

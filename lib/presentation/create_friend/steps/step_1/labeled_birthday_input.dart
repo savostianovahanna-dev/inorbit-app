@@ -8,9 +8,11 @@ class LabeledBirthdayInput extends StatefulWidget {
     super.key,
     required this.controller,
     this.initialDate,
+    this.onDateChanged,
   });
   final TextEditingController controller;
   final DateTime? initialDate;
+  final ValueChanged<DateTime?>? onDateChanged;
 
   @override
   State<LabeledBirthdayInput> createState() => _LabeledBirthdayInputState();
@@ -94,6 +96,7 @@ class _LabeledBirthdayInputState extends State<LabeledBirthdayInput> {
                             widget.controller.text =
                                 '${_months[tempDate.month - 1]} ${tempDate.day}';
                           });
+                          widget.onDateChanged?.call(tempDate);
                           Navigator.pop(ctx);
                         },
                         child: Text(

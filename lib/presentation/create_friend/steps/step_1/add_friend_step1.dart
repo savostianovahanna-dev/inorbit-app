@@ -14,6 +14,7 @@ class AddFriendStep1 extends StatelessWidget {
     this.onPlanetIndexChanged,
     this.onAvatarPathChanged,
     this.onRemindBirthdayChanged,
+    this.onBirthdayChanged,
   });
 
   final TextEditingController nameCtrl;
@@ -22,6 +23,7 @@ class AddFriendStep1 extends StatelessWidget {
   final ValueChanged<int?>? onPlanetIndexChanged;
   final ValueChanged<String?>? onAvatarPathChanged;
   final ValueChanged<bool>? onRemindBirthdayChanged;
+  final ValueChanged<DateTime?>? onBirthdayChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +37,10 @@ class AddFriendStep1 extends StatelessWidget {
         const SizedBox(height: 24),
         LabeledInput(label: 'Name', controller: nameCtrl, hint: 'Anna'),
         const SizedBox(height: 20),
-        LabeledBirthdayInput(controller: birthdayCtrl),
+        LabeledBirthdayInput(
+          controller: birthdayCtrl,
+          onDateChanged: onBirthdayChanged,
+        ),
         const SizedBox(height: 8),
         RemindBirthdayRow(onChanged: onRemindBirthdayChanged),
         const SizedBox(height: 20),

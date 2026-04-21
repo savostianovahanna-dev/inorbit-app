@@ -46,6 +46,7 @@ class _AddFriendScreenContentState extends State<_AddFriendScreenContent> {
   DateTime? _lastConnectedAt;
   int? _planetIndex;
   String? _avatarFilePath;
+  DateTime? _birthday;
   bool _remindBirthday = true;
   bool _saving = false;
 
@@ -77,6 +78,7 @@ class _AddFriendScreenContentState extends State<_AddFriendScreenContent> {
           planetIndex: _planetIndex,
           orbitTier: orbitTiers[_orbitTierIndex],
           frequencyDays: freqDays[_orbitTierIndex],
+          birthday: _birthday,
           lastConnectedAt: _lastConnectedAt,
           remindBirthday: _remindBirthday,
           notes:
@@ -104,6 +106,7 @@ class _AddFriendScreenContentState extends State<_AddFriendScreenContent> {
           onPlanetIndexChanged: (i) => setState(() => _planetIndex = i),
           onAvatarPathChanged: (p) => setState(() => _avatarFilePath = p),
           onRemindBirthdayChanged: (v) => setState(() => _remindBirthday = v),
+          onBirthdayChanged: (d) => setState(() => _birthday = d),
         );
       case 2:
         return AddFriendStep2(
