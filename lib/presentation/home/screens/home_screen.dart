@@ -14,6 +14,8 @@ import '../../friend/screens/friend_screen.dart';
 import '../../settings/screens/settings_screen.dart';
 import '../../stats/screens/stats_screen.dart';
 import '../widgets/birthday_notification_card.dart';
+// ІМПОРТ ТВОГО BIRTHDAY TODAY WIDGET (замінити на реальне імя!)
+// import '../widgets/birthday_today_card.dart';  ← ТИ ПОВИНЕН ЗНАТИ ЯК ВІН НАЗИВАЄТЬСЯ!
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/home_app_bar.dart';
 import '../widgets/friend_card.dart';
@@ -65,10 +67,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (state is HomeLoaded) {
             final birthdaysEnabled =
                 getIt<UserProfileService>().birthdaysEnabled;
+            // ЗМІНА: scheduleBirthdayReminders тепер планує ДВА notifications
             getIt<NotificationService>().scheduleBirthdayReminders(
               state.friends,
               globalEnabled: birthdaysEnabled,
             );
+            // ЗМІНА: scheduleOrbitReminders тепер планує раз на 2 тижні
             getIt<NotificationService>().scheduleOrbitReminders(state.friends);
           }
         },
@@ -131,18 +135,26 @@ class _OrbitTab extends StatelessWidget {
 
 // ─── Loaded view ──────────────────────────────────────────────────────────────
 
-class _LoadedView extends StatelessWidget {
+class _LoadedView extends StatefulWidget {
   const _LoadedView({required this.friends});
 
   final List<Friend> friends;
+
+  @override
+  State<_LoadedView> createState() => _LoadedViewState();
+}
+
+class _LoadedViewState extends State<_LoadedView> {
+  // НОВЕ: зберігаємо які birthday preview cards були dismissed
+  final Set<String> _dismissedBirthdayPreviews = {};
 
   static const _kCardH = 177.0;
 
   @override
   Widget build(BuildContext context) {
-    if (friends.isEmpty) return _EmptyOrbitView();
+    if (widget.friends.isEmpty) return const _EmptyOrbitView();
 
-    final overdueCount = friends.where((f) => f.isOverdue).length;
+    final overdueCount = widget.friends.where((f) => f.isOverdue).length;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -174,7 +186,7 @@ class _LoadedView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: OrbitWidget(
-                friends: friends,
+                friends: widget.friends,
                 userInitials: 'You',
                 height: orbitH,
                 onFriendTap:
@@ -192,7 +204,7 @@ class _LoadedView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                _subtitle(friends.length, overdueCount),
+                _subtitle(widget.friends.length, overdueCount),
                 style: AppTextStyles.bodyRegular14.copyWith(
                   fontSize: 12,
                   color: const Color(0xFFAEAEB2),
@@ -206,18 +218,52 @@ class _LoadedView extends StatelessWidget {
               child: CustomScrollView(
                 physics: const BouncingScrollPhysics(),
                 slivers: [
-                  // Birthday notification cards (today or within 7 days)
-                  ..._upcomingBirthdays(friends).map(
-                    (entry) => SliverPadding(
+                  // НОВЕ: Birthday preview cards (за 7 днів)
+                  // - БЕЗ birthday sticker
+                  // - Можна закрити (X кнопка)
+                  // - Зберігаємо які cards були dismissed
+                  ..._upcomingBirthdayPreviews(widget.friends)
+                      .where(
+                        (entry) =>
+                            !_dismissedBirthdayPreviews.contains(entry.$1.id),
+                      )
+                      .map(
+                        (entry) => SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          sliver: SliverToBoxAdapter(
+                            child: _BirthdayPreviewCard(
+                              friend: entry.$1,
+                              daysUntil: entry.$2,
+                              onDismiss: () {
+                                setState(() {
+                                  _dismissedBirthdayPreviews.add(entry.$1.id);
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+
+                  // НОВЕ: Birthday today card (день в день)
+                  // Використовуємо ТВІЙ ВЛАСНИЙ ВІДЖЕТ замість мого!
+                  //
+                  // ЗАМІНИТИ НА ТВІЙ КОМПОНЕНТ ЯКЩО ПОТРІБНО
+                  // Проста логіка: якщо у друга день народження сьогодні
+                  // Показуємо твій вже зроблений віджет
+                  ..._birthdayToday(widget.friends).map(
+                    (friend) => SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                       sliver: SliverToBoxAdapter(
+                        // ЗАМІНИТИ на твій віджет!
+                        // Наприклад: BirthdayNotificationCard або твій custom widget
                         child: BirthdayNotificationCard(
-                          friend: entry.$1,
-                          daysUntil: entry.$2,
+                          friend: friend,
+                          daysUntil: 0, // Сьогодні = 0 днів
                         ),
                       ),
                     ),
                   ),
+
                   // Friends grid
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -229,9 +275,9 @@ class _LoadedView extends StatelessWidget {
                             mainAxisSpacing: 12,
                             mainAxisExtent: _kCardH,
                           ),
-                      itemCount: friends.length,
+                      itemCount: widget.friends.length,
                       itemBuilder: (context, index) {
-                        final friend = friends[index];
+                        final friend = widget.friends[index];
                         return FriendCard(
                           friend: friend,
                           lastMeetingType: null,
@@ -259,25 +305,47 @@ class _LoadedView extends StatelessWidget {
     );
   }
 
-  /// Returns friends whose birthday is today or within the next 7 days,
-  /// sorted by soonest first. Each entry is (friend, daysUntil).
-  static List<(Friend, int)> _upcomingBirthdays(List<Friend> friends) {
+  /// НОВА ФУНКЦІЯ: Повертає friends у яких день народження за 7 днів
+  /// БЕЗ дня в день (тому що це окремо _birthdayToday)
+  /// Кожен entry: (friend, daysUntil)
+  static List<(Friend, int)> _upcomingBirthdayPreviews(List<Friend> friends) {
     final today = DateTime.now();
     final todayMidnight = DateTime(today.year, today.month, today.day);
     final result = <(Friend, int)>[];
+
     for (final f in friends) {
       if (f.birthday == null) continue;
       final bday = f.birthday!;
+
       var next = DateTime(today.year, bday.month, bday.day);
       if (next.isBefore(todayMidnight)) {
         next = DateTime(today.year + 1, bday.month, bday.day);
       }
+
       final diff = next.difference(todayMidnight).inDays;
-      if (diff <= 7) result.add((f, diff));
+
+      // ЗМІНА: Показувати за 7 днів ДО дня народження (diff > 0 && diff <= 7)
+      // Але НЕ день в день (diff != 0)
+      if (diff > 0 && diff <= 7) {
+        result.add((f, diff));
+      }
     }
 
     result.sort((a, b) => a.$2.compareTo(b.$2));
     return result;
+  }
+
+  /// НОВА ФУНКЦІЯ: Повертає friends у яких день народження СЬОГОДНІ
+  static List<Friend> _birthdayToday(List<Friend> friends) {
+    final today = DateTime.now();
+    final todayMidnight = DateTime(today.year, today.month, today.day);
+
+    return friends.where((f) {
+      if (f.birthday == null) return false;
+      final bday = f.birthday!;
+      final nextBday = DateTime(today.year, bday.month, bday.day);
+      return nextBday.isAtSameMomentAs(todayMidnight);
+    }).toList();
   }
 
   static String _subtitle(int total, int overdue) {
@@ -285,6 +353,70 @@ class _LoadedView extends StatelessWidget {
     if (overdue == 0) return people;
     final attn = overdue == 1 ? '1 needs attention' : '$overdue need attention';
     return '$people · $attn';
+  }
+}
+
+// ─── Birthday Preview Card (за 7 днів) ────────────────────────────────────
+
+class _BirthdayPreviewCard extends StatelessWidget {
+  const _BirthdayPreviewCard({
+    required this.friend,
+    required this.daysUntil,
+    required this.onDismiss,
+  });
+
+  final Friend friend;
+  final int daysUntil;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider, width: 1),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(friend.name, style: AppTextStyles.bodyMedium16),
+                const SizedBox(height: 4),
+                Text(
+                  'Birthday in $daysUntil ${daysUntil == 1 ? 'day' : 'days'}',
+                  style: AppTextStyles.bodyRegular14.copyWith(
+                    color: const Color(0xFFAEAEB2),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // НОВЕ: Close button (X)
+          GestureDetector(
+            onTap: onDismiss,
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.background,
+              ),
+              child: Center(
+                child: Icon(
+                  Icons.close,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

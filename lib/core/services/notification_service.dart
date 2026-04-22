@@ -5,10 +5,17 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../../domain/entities/friend.dart';
 
-/// Handles scheduling and cancelling local birthday reminder notifications.
+/// Handles scheduling and cancelling local birthday and orbit reminder notifications.
 ///
-/// Notifications fire at 9 AM **the day before** each friend's birthday
-/// and repeat automatically every year.
+/// BIRTHDAY NOTIFICATIONS:
+/// - Push за 7 днів о 12:00 (тихий, для приготування)
+/// - Push день в день о 12:00 (громкий, фінальний нагадок)
+///
+/// ORBIT NOTIFICATIONS:
+/// - Push раз на 2 тижні (дні 30, 44, 58, 72...) коли друг overdue
+/// - In-app статус (Green/Yellow/Red) показується на HomeScreem
+///
+/// Notifications fire at specific local times and repeat automatically.
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
@@ -17,10 +24,18 @@ class NotificationService {
   final _scheduledBirthdayIds = <int>{};
   final _scheduledOrbitIds = <int>{};
 
-  static const _iosDetails = DarwinNotificationDetails(
+  /// iOS notification details з громким звуком
+  static const _iosDetailsWithSound = DarwinNotificationDetails(
     presentAlert: true,
     presentBadge: true,
     presentSound: true,
+  );
+
+  /// iOS notification details без звуку (для reminder за 7 днів)
+  static const _iosDetailsQuiet = DarwinNotificationDetails(
+    presentAlert: true,
+    presentBadge: true,
+    presentSound: false,
   );
 
   // ── Init ────────────────────────────────────────────────────────────────────
@@ -66,6 +81,10 @@ class NotificationService {
 
   /// Cancels all existing birthday notifications and reschedules based on
   /// the current [friends] list and the [globalEnabled] toggle from Settings.
+  ///
+  /// ЗМІНА: Тепер планує ДВА notifications для кожного друга:
+  /// 1. За 7 днів о 12:00 (тихий)
+  /// 2. День в день о 12:00 (громкий)
   Future<void> scheduleBirthdayReminders(
     List<Friend> friends, {
     required bool globalEnabled,
@@ -80,7 +99,9 @@ class NotificationService {
 
     for (final friend in friends) {
       if (friend.birthday == null || !friend.remindBirthday) continue;
-      await _scheduleForFriend(friend);
+      // НОВЕ: планує дві notifications замість однієї
+      await _scheduleBirthdayReminder_7DaysBefore(friend);
+      await _scheduleBirthdayReminder_Today(friend);
     }
 
     debugPrint(
@@ -90,7 +111,10 @@ class NotificationService {
   }
 
   /// Cancels all existing orbit reminders and reschedules based on the current
-  /// [friends] list. Fires at 9 AM the day before each friend becomes overdue.
+  /// [friends] list.
+  ///
+  /// ЗМІНА: Тепер планує notifications раз на 2 тижні (дні 30, 44, 58...)
+  /// замість одного за день до overdue
   Future<void> scheduleOrbitReminders(List<Friend> friends) async {
     for (final id in _scheduledOrbitIds) {
       await _plugin.cancel(id);
@@ -98,7 +122,7 @@ class NotificationService {
     _scheduledOrbitIds.clear();
 
     for (final friend in friends) {
-      await _scheduleOrbitForFriend(friend);
+      await _scheduleOrbitReminders_Recurring(friend);
     }
 
     debugPrint(
@@ -108,20 +132,24 @@ class NotificationService {
 
   // ── Private helpers ─────────────────────────────────────────────────────────
 
-  Future<void> _scheduleForFriend(Friend friend) async {
+  /// НОВА ФУНКЦІЯ: Планує push за 7 днів до дня народження о 12:00
+  /// Текст: "🎁 {friend}'s birthday is in 7 days!"
+  /// Звук: Тихий (для hint)
+  /// ID: friend.id.hashCode + 300000
+  Future<void> _scheduleBirthdayReminder_7DaysBefore(Friend friend) async {
     final birthday = friend.birthday!;
     final now = tz.TZDateTime.now(tz.local);
 
-    // The reminder fires at 9:00 AM the day before the birthday.
+    // Розраховуємо дату 12:00 за 7 днів до ДН
     var reminderDate = tz.TZDateTime(
       tz.local,
       now.year,
       birthday.month,
       birthday.day,
-      9,
+      12, // ЗМІНА: 12:00 (обід) замість 9:00 AM
       0,
       0,
-    ).subtract(const Duration(days: 1));
+    ).subtract(const Duration(days: 7)); // ЗМІНА: мінус 7 днів
 
     // If today is past that date this year, push to next year.
     if (reminderDate.isBefore(now)) {
@@ -130,61 +158,155 @@ class NotificationService {
         now.year + 1,
         birthday.month,
         birthday.day,
-        9,
+        12,
         0,
         0,
-      ).subtract(const Duration(days: 1));
+      ).subtract(const Duration(days: 7));
     }
 
-    // Stable int ID — friends are identified by UUID strings, so hash them.
-    final notifId = friend.id.hashCode.abs() % 100000;
+    // НОВЕ: ID offset +300000 для 7-day reminders
+    final notifId = friend.id.hashCode.abs() % 100000 + 300000;
     _scheduledBirthdayIds.add(notifId);
 
-    // Schedule for the next occurrence (one-shot).
-    // Re-scheduling happens every time the app opens via HomeScreen's
-    // BlocListener, so the notification effectively repeats annually.
     await _plugin.zonedSchedule(
       notifId,
-      "🎂 ${friend.name}'s birthday is tomorrow",
-      "Don't forget to reach out and wish them a happy birthday!",
+      "🎁 ${friend.name}'s birthday is in 7 days!",
+      "Time to think about a gift or plan something special",
       reminderDate,
-      const NotificationDetails(iOS: _iosDetails),
+      // ЗМІНА: Використовуємо тихий звук для цього reminder
+      NotificationDetails(iOS: _iosDetailsQuiet),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
-  Future<void> _scheduleOrbitForFriend(Friend friend) async {
-    final baseline = friend.lastConnectedAt ?? friend.createdAt;
+  /// НОВА ФУНКЦІЯ: Планує push день в день дня народження о 12:00
+  /// Текст: "🎂 {friend}'s birthday is today!"
+  /// Звук: Громкий (важна)
+  /// ID: friend.id.hashCode + 400000
+  Future<void> _scheduleBirthdayReminder_Today(Friend friend) async {
+    final birthday = friend.birthday!;
     final now = tz.TZDateTime.now(tz.local);
 
-    // Fire at 9 AM on the last day of the check-in window (one day before overdue).
+    // Розраховуємо дату 12:00 день в день
     var reminderDate = tz.TZDateTime(
       tz.local,
-      baseline.year,
-      baseline.month,
-      baseline.day,
-      9, 0, 0,
-    ).add(Duration(days: friend.frequencyDays - 1));
+      now.year,
+      birthday.month,
+      birthday.day,
+      12, // ЗМІНА: 12:00 день в день
+      0,
+      0,
+    );
 
-    // Already past this window — skip (they're already overdue, shown in UI).
-    if (reminderDate.isBefore(now)) return;
+    // If today is the birthday itself, we need next year
+    if (reminderDate.isBefore(now)) {
+      reminderDate = tz.TZDateTime(
+        tz.local,
+        now.year + 1,
+        birthday.month,
+        birthday.day,
+        12,
+        0,
+        0,
+      );
+    }
 
-    // Orbit IDs are offset by 200000 to avoid colliding with birthday IDs.
-    final notifId = friend.id.hashCode.abs() % 100000 + 200000;
-    _scheduledOrbitIds.add(notifId);
+    // НОВЕ: ID offset +400000 для today reminders
+    final notifId = friend.id.hashCode.abs() % 100000 + 400000;
+    _scheduledBirthdayIds.add(notifId);
 
     await _plugin.zonedSchedule(
       notifId,
-      '👋 Reach out to ${friend.name} soon',
-      "Tomorrow is the last day of your ${friend.frequencyDays}-day check-in window.",
+      "🎂 ${friend.name}'s birthday is today!",
+      "Don't forget to call or send a message",
       reminderDate,
-      const NotificationDetails(iOS: _iosDetails),
+      // ЗМІНА: Використовуємо громкий звук для цього reminder
+      const NotificationDetails(iOS: _iosDetailsWithSound),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
+  }
+
+  /// ЗМІНЕНА ФУНКЦІЯ: Планує orbit reminders раз на 2 тижні (дні 30, 44, 58, 72...)
+  /// замість одного за день до overdue
+  ///
+  /// ЛОГІКА:
+  /// День 0: User спілкується з друзом
+  /// День 1-25: Green "In orbit" (no notifications)
+  /// День 26-29: Yellow "Coming up soon" (no notifications)
+  /// День 30: PUSH "needs attention!" (перша push)
+  /// День 44: PUSH "still waiting..." (друга push)
+  /// День 58: PUSH "really waiting..." (третя push)
+  /// День 72: PUSH "don't forget..." (четверта push)
+  /// ... і так далі кожні 14 днів
+  ///
+  /// ID: friend.id.hashCode + 200000 + (multiplier * 10)
+  Future<void> _scheduleOrbitReminders_Recurring(Friend friend) async {
+    final baseline = friend.lastConnectedAt ?? friend.createdAt;
+    final now = tz.TZDateTime.now(tz.local);
+    final frequencyDays = friend.frequencyDays;
+
+    // Планує notifications для дні 30, 44, 58, 72... (кожні 14 днів після overdue)
+    for (int multiplier = 0; multiplier < 6; multiplier++) {
+      final overdueDay = frequencyDays + (multiplier * 14);
+
+      var notificationDate = tz.TZDateTime(
+        tz.local,
+        baseline.year,
+        baseline.month,
+        baseline.day,
+        9, // 9:00 AM
+        0,
+        0,
+      ).add(Duration(days: overdueDay));
+
+      // Skip if this date is already in the past
+      if (notificationDate.isBefore(now)) continue;
+
+      // НОВЕ: ID схема для overdue notifications
+      // День 30: +200000, День 44: +210000, День 58: +220000 тощо
+      final notifId =
+          friend.id.hashCode.abs() % 100000 + 200000 + (multiplier * 10000);
+      _scheduledOrbitIds.add(notifId);
+
+      final message = _getOrbitPushMessage(
+        multiplier,
+        friend.name,
+        frequencyDays,
+      );
+
+      await _plugin.zonedSchedule(
+        notifId,
+        message,
+        "You haven't connected in $overdueDay days.",
+        notificationDate,
+        const NotificationDetails(iOS: _iosDetailsWithSound),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    }
+  }
+
+  /// НОВА ФУНКЦІЯ: Повертає різні повідомлення для orbit reminders
+  /// залежно від того, яка по номеру це push
+  /// (escalation: від м'яких до більш настійливих)
+  String _getOrbitPushMessage(
+    int weekNumber,
+    String friendName,
+    int frequencyDays,
+  ) {
+    return switch (weekNumber) {
+      0 => '👋 $friendName needs your attention!',
+      1 => '👋 Still waiting to hear from $friendName...',
+      2 => '👋 $friendName is really waiting for you...',
+      3 => '👋 Don\'t forget about $friendName!',
+      4 => '👋 Time to reconnect with $friendName!',
+      _ => '👋 Reach out to $friendName!',
+    };
   }
 
   /// Best-effort detection of the device timezone name (e.g. "Europe/London").

@@ -54,6 +54,7 @@ class _SettingsContentState extends State<SettingsContent> {
 
   /// Called when the birthday-reminder toggle is flipped.
   /// Requests notification permission on first enable, then reschedules.
+  /// ЗМІНА: Тепер планує ДВА notifications (7 днів + день в день)
   Future<void> _onBirthdaysToggled(bool enabled) async {
     // Keep the in-memory cache up to date for HomeScreen's listener.
     getIt<UserProfileService>().birthdaysEnabled = enabled;
@@ -71,6 +72,7 @@ class _SettingsContentState extends State<SettingsContent> {
     }
 
     // Reschedule (or cancel) using the current friends list.
+    // ЗМІНА: Це тепер планує обидві notifications (7 днів + день в день)
     await getIt<NotificationService>().scheduleBirthdayReminders(
       friends,
       globalEnabled: enabled,
@@ -135,7 +137,8 @@ class _SettingsContentState extends State<SettingsContent> {
               const _RowDivider(),
               _ToggleRow(
                 title: 'Birthday reminders',
-                subtitle: 'A quiet reminder the day before',
+                // ЗМІНА: Оновлений текст (було "A quiet reminder the day before")
+                subtitle: '7-day hint & a reminder on the day',
                 value: _birthdays,
                 onChanged: (v) {
                   setState(() => _birthdays = v);
@@ -147,7 +150,8 @@ class _SettingsContentState extends State<SettingsContent> {
               const _ValueRow(
                 title: 'Reminder time',
                 subtitle: 'When daily nudges arrive',
-                value: '9:00 AM',
+                // ЗМІНА: Тепер 9 AM для orbit, 12:00 PM для birthdays
+                value: '9:00 AM (orbit), 12:00 PM (birthdays)',
               ),
             ],
           ),
@@ -205,9 +209,7 @@ class _ProfileCardState extends State<_ProfileCard> {
   void _openEditProfile(String name) {
     Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => EditProfileScreen(initialName: name),
-      ),
+      MaterialPageRoute(builder: (_) => EditProfileScreen(initialName: name)),
     ).then((changed) {
       // Rebuild to pick up the updated displayName + localAvatarPath.
       if (changed == true && mounted) setState(() {});
@@ -220,11 +222,11 @@ class _ProfileCardState extends State<_ProfileCard> {
     final name = user?.displayName ?? 'You';
     final googlePhotoUrl = user?.photoURL;
     final localPath = getIt<UserProfileService>().localAvatarPath;
-    final initial =
-        name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
-    final orbitLabel = widget.friendCount == 1
-        ? '1 person in orbit'
-        : '${widget.friendCount} people in orbit';
+    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
+    final orbitLabel =
+        widget.friendCount == 1
+            ? '1 person in orbit'
+            : '${widget.friendCount} people in orbit';
 
     return Container(
       width: double.infinity,
@@ -255,25 +257,24 @@ class _ProfileCardState extends State<_ProfileCard> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(name, style: AppTextStyles.headerTitle),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   orbitLabel,
-                  style: AppTextStyles.settingsRowSubtitle.copyWith(
-                    fontSize: 13,
+                  style: AppTextStyles.labelRegular14.copyWith(
+                    color: const Color(0xFFAEAEB2),
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 12),
 
-          // ── Edit profile link ─────────────────────────────────────────────
+          // ── Edit chevron ──────────────────────────────────────────────────
           GestureDetector(
             onTap: () => _openEditProfile(name),
-            child: Text(
-              'Edit profile',
-              style: AppTextStyles.labelRegular14.copyWith(
-                color: AppColors.textSecondary,
-              ),
+            child: CustomPaint(
+              size: const Size(16, 16),
+              painter: _ChevronRightPainter(),
             ),
           ),
         ],
@@ -286,46 +287,35 @@ class _ProfileCardState extends State<_ProfileCard> {
     String? googlePhotoUrl,
     String initial,
   ) {
-    // 1. Locally picked photo (set after editing profile).
-    if (localPath != null) {
-      return Image.file(File(localPath), fit: BoxFit.cover);
+    // 1. Try local avatar (after editing).
+    if (localPath != null && File(localPath).existsSync()) {
+      return Image.file(localPath as File, fit: BoxFit.cover);
     }
-    // 2. Google account photo.
+
+    // 2. Try Google photo.
     if (googlePhotoUrl != null) {
       return CachedNetworkImage(
         imageUrl: googlePhotoUrl,
         fit: BoxFit.cover,
-        placeholder: (_, __) => _AvatarFallback(initial: initial),
-        errorWidget: (_, __, ___) => _AvatarFallback(initial: initial),
+        errorWidget: (_, __, ___) => _avatarPlaceholder(initial),
       );
     }
-    // 3. Gradient + initial.
-    return _AvatarFallback(initial: initial);
+
+    // 3. Fallback: placeholder.
+    return _avatarPlaceholder(initial);
   }
-}
 
-class _AvatarFallback extends StatelessWidget {
-  const _AvatarFallback({required this.initial});
-
-  final String initial;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.avatarFill, AppColors.orbitDark],
-        ),
-      ),
+  Widget _avatarPlaceholder(String initial) {
+    return Container(
+      width: 56,
+      height: 56,
+      color: AppColors.background,
       child: Center(
         child: Text(
           initial,
-          style: AppTextStyles.bodyMedium16.copyWith(
-            color: AppColors.white,
-            fontSize: 22,
-            height: 1,
+          style: AppTextStyles.headerTitle.copyWith(
+            color: AppColors.textSecondary,
+            fontSize: 24,
           ),
         ),
       ),
@@ -333,29 +323,26 @@ class _AvatarFallback extends StatelessWidget {
   }
 }
 
-// ─── Section overline label ───────────────────────────────────────────────────
+// ─── Section label ────────────────────────────────────────────────────────────
 
 class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
+  const _SectionLabel(this.label);
 
-  final String text;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return Text(
-      text.toUpperCase(),
-      style: AppTextStyles.bodyMedium16.copyWith(
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-        color: AppColors.cardBorder,
-        letterSpacing: 0.5,
-        height: 1.5,
+      label,
+      style: AppTextStyles.labelRegular14.copyWith(
+        color: AppColors.textSecondary,
+        fontWeight: FontWeight.w600,
       ),
     );
   }
 }
 
-// ─── White rounded card wrapper ───────────────────────────────────────────────
+// ─── Settings card (container for rows) ────────────────────────────────────────
 
 class _SettingsCard extends StatelessWidget {
   const _SettingsCard({required this.children});
@@ -365,8 +352,6 @@ class _SettingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(20),
