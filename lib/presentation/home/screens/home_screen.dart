@@ -326,7 +326,7 @@ class _LoadedViewState extends State<_LoadedView> {
 
       // ЗМІНА: Показувати за 7 днів ДО дня народження (diff > 0 && diff <= 7)
       // Але НЕ день в день (diff != 0)
-      if (diff > 0 && diff <= 7) {
+      if (diff > 0 && diff <= 7 && f.remindBirthday) {
         result.add((f, diff));
       }
     }

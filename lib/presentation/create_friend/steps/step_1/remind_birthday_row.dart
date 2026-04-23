@@ -3,7 +3,11 @@ import 'package:inorbit/core/theme/app_colors.dart';
 import 'package:inorbit/core/theme/app_text_styles.dart';
 
 class RemindBirthdayRow extends StatefulWidget {
-  const RemindBirthdayRow({super.key, this.onChanged, this.initialValue = true});
+  const RemindBirthdayRow({
+    super.key,
+    this.onChanged,
+    this.initialValue = true,
+  });
   final ValueChanged<bool>? onChanged;
   final bool initialValue;
 
@@ -36,7 +40,7 @@ class _RemindBirthdayRowState extends State<RemindBirthdayRow> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '5 days before their birthday',
+                  '7 days before their birthday',
                   style: AppTextStyles.settingsRowSubtitle,
                 ),
               ],
