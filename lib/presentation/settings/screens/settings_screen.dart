@@ -5,11 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../bloc/home/home_bloc.dart';
+import '../../../bloc/settings/settings_bloc.dart';
 import '../../../domain/entities/friend.dart';
 import '../../../core/di/injection.dart';
-import '../../../core/services/auth_service.dart';
-import '../../../core/services/notification_service.dart';
-import '../../../core/services/user_profile_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../auth/screens/login_screen.dart';
@@ -18,177 +16,111 @@ import 'edit_profile_screen.dart';
 /// The content shown when the Settings tab is active.
 /// Embedded inside HomeScreen's Expanded area so the bottom nav stays visible.
 /// Figma: node 60-8000
-class SettingsContent extends StatefulWidget {
+class SettingsContent extends StatelessWidget {
   const SettingsContent({super.key});
-
-  @override
-  State<SettingsContent> createState() => _SettingsContentState();
-}
-
-class _SettingsContentState extends State<SettingsContent> {
-  // Toggle states
-  bool _reminders = true;
-  bool _birthdays = true;
-  bool _countMessages = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-  }
-
-  Future<void> _loadSettings() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    final data = await getIt<UserProfileService>().load(uid);
-    if (data == null || !mounted) return;
-    final s = (data['settings'] as Map<String, dynamic>?) ?? {};
-    setState(() {
-      _reminders = s['reminders'] as bool? ?? true;
-      _birthdays = s['birthdays'] as bool? ?? true;
-      _countMessages = s['countMessages'] as bool? ?? false;
-    });
-    // Keep in-memory cache in sync.
-    getIt<UserProfileService>().birthdaysEnabled = _birthdays;
-  }
-
-  /// Called when the birthday-reminder toggle is flipped.
-  /// Requests notification permission on first enable, then reschedules.
-  /// ЗМІНА: Тепер планує ДВА notifications (7 днів + день в день)
-  Future<void> _onBirthdaysToggled(bool enabled) async {
-    // Keep the in-memory cache up to date for HomeScreen's listener.
-    getIt<UserProfileService>().birthdaysEnabled = enabled;
-
-    // Capture friends list BEFORE any await so we don't use BuildContext
-    // across an async gap.
-    final friends = switch (context.read<HomeBloc>().state) {
-      HomeLoaded(:final friends) => friends,
-      _ => <Friend>[],
-    };
-
-    if (enabled) {
-      // Ask iOS for permission if we don't have it yet.
-      await getIt<NotificationService>().requestPermissions();
-    }
-
-    // Reschedule (or cancel) using the current friends list.
-    // ЗМІНА: Це тепер планує обидві notifications (7 днів + день в день)
-    await getIt<NotificationService>().scheduleBirthdayReminders(
-      friends,
-      globalEnabled: enabled,
-    );
-  }
-
-  void _saveSettings() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    getIt<UserProfileService>().save(uid, {
-      'settings': {
-        'reminders': _reminders,
-        'birthdays': _birthdays,
-        'countMessages': _countMessages,
-      },
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + bottomPad),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Page header ──────────────────────────────────────────────────────
-          SizedBox(
-            height: 40,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Settings', style: AppTextStyles.headerTitle),
-            ),
-          ),
-          const SizedBox(height: 20),
+    return BlocProvider<SettingsBloc>(
+      create: (_) => getIt<SettingsBloc>()..add(const SettingsStarted()),
+      child: BlocListener<SettingsBloc, SettingsState>(
+        listenWhen: (prev, curr) => prev.status != curr.status,
+        listener: (ctx, state) {
+          if (state.status == SettingsStatus.loggedOut) {
+            Navigator.of(ctx).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+              (route) => false,
+            );
+          } else if (state.status == SettingsStatus.error) {
+            ScaffoldMessenger.of(ctx).showSnackBar(
+              SnackBar(
+                content: Text(state.errorMessage ?? 'Something went wrong'),
+              ),
+            );
+          }
+        },
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + bottomPad),
+          child: Builder(
+            builder: (context) {
+              final settingsState = context.watch<SettingsBloc>().state;
+              final friends = switch (context.watch<HomeBloc>().state) {
+                HomeLoaded(:final friends) => friends,
+                _ => <Friend>[],
+              };
 
-          // ── Profile card ─────────────────────────────────────────────────────
-          _ProfileCard(
-            friendCount: switch (context.watch<HomeBloc>().state) {
-              HomeLoaded(:final friends) => friends.length,
-              _ => 0,
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Page header ──────────────────────────────────────────────
+                  SizedBox(
+                    height: 40,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Settings', style: AppTextStyles.headerTitle),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // ── Profile card ─────────────────────────────────────────────
+                  _ProfileCard(
+                    friendCount: friends.length,
+                    localAvatarPath: settingsState.localAvatarPath,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ── Notifications ────────────────────────────────────────────
+                  const _SectionLabel('Notifications'),
+                  const SizedBox(height: 12),
+                  _SettingsCard(
+                    children: [
+                      _ToggleRow(
+                        title: 'Reminders & nudges',
+                        subtitle: "Get reminded when it's time to connect",
+                        value: settingsState.reminders,
+                        onChanged:
+                            (v) => context.read<SettingsBloc>().add(
+                              SettingsRemindersToggled(v),
+                            ),
+                      ),
+                      const _RowDivider(),
+                      _ToggleRow(
+                        title: 'Birthday reminders',
+                        subtitle: '7-day hint & a reminder on the day',
+                        value: settingsState.birthdays,
+                        onChanged:
+                            (v) => context.read<SettingsBloc>().add(
+                              SettingsBirthdaysToggled(v, friends),
+                            ),
+                      ),
+                      // const _RowDivider(),
+                      // const _ValueRow(
+                      //   title: 'Reminder time',
+                      //   subtitle: 'When daily nudges arrive',
+                      //   value: '9:00 AM (orbit), 12:00 PM (birthdays)',
+                      // ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ── Data & Privacy ───────────────────────────────────────────
+                  const _SectionLabel('Data & Privacy'),
+                  const SizedBox(height: 12),
+                  const _SettingsCard(
+                    children: [_ValueRow(title: 'Privacy policy')],
+                  ),
+                  const SizedBox(height: 32),
+
+                  // ── Bottom: version + log out + delete ───────────────────────
+                  const _BottomSection(),
+                ],
+              );
             },
           ),
-          const SizedBox(height: 24),
-
-          // ── Notifications ────────────────────────────────────────────────────
-          const _SectionLabel('Notifications'),
-          const SizedBox(height: 12),
-          _SettingsCard(
-            children: [
-              _ToggleRow(
-                title: 'Reminders & nudges',
-                subtitle: "Get reminded when it's time to connect",
-                value: _reminders,
-                onChanged: (v) {
-                  setState(() => _reminders = v);
-                  _saveSettings();
-                },
-              ),
-              const _RowDivider(),
-              _ToggleRow(
-                title: 'Birthday reminders',
-                // ЗМІНА: Оновлений текст (було "A quiet reminder the day before")
-                subtitle: '7-day hint & a reminder on the day',
-                value: _birthdays,
-                onChanged: (v) {
-                  setState(() => _birthdays = v);
-                  _saveSettings();
-                  _onBirthdaysToggled(v);
-                },
-              ),
-              const _RowDivider(),
-              const _ValueRow(
-                title: 'Reminder time',
-                subtitle: 'When daily nudges arrive',
-                // ЗМІНА: Тепер 9 AM для orbit, 12:00 PM для birthdays
-                value: '9:00 AM (orbit), 12:00 PM (birthdays)',
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // ── Preferences ──────────────────────────────────────────────────────
-          const _SectionLabel('Preferences'),
-          const SizedBox(height: 12),
-          _SettingsCard(
-            children: [
-              const _ValueRow(
-                title: 'Default contact frequency',
-                value: 'Monthly',
-              ),
-              const _RowDivider(),
-              _ToggleRow(
-                title: 'Count messages as contact',
-                subtitle: 'Include texts and DMs in your history',
-                value: _countMessages,
-                onChanged: (v) {
-                  setState(() => _countMessages = v);
-                  _saveSettings();
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // ── Data & Privacy ───────────────────────────────────────────────────
-          const _SectionLabel('Data & Privacy'),
-          const SizedBox(height: 12),
-          const _SettingsCard(children: [_ValueRow(title: 'Privacy policy')]),
-          const SizedBox(height: 32),
-
-          // ── Bottom: version + log out + delete ───────────────────────────────
-          const _BottomSection(),
-        ],
+        ),
       ),
     );
   }
@@ -196,23 +128,23 @@ class _SettingsContentState extends State<SettingsContent> {
 
 // ─── Profile card ─────────────────────────────────────────────────────────────
 
-class _ProfileCard extends StatefulWidget {
-  const _ProfileCard({required this.friendCount});
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard({
+    required this.friendCount,
+    required this.localAvatarPath,
+  });
 
   final int friendCount;
+  final String? localAvatarPath;
 
-  @override
-  State<_ProfileCard> createState() => _ProfileCardState();
-}
-
-class _ProfileCardState extends State<_ProfileCard> {
-  void _openEditProfile(String name) {
+  void _openEditProfile(BuildContext context, String name) {
     Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => EditProfileScreen(initialName: name)),
     ).then((changed) {
-      // Rebuild to pick up the updated displayName + localAvatarPath.
-      if (changed == true && mounted) setState(() {});
+      if (changed == true && context.mounted) {
+        context.read<SettingsBloc>().add(const SettingsProfileRefreshed());
+      }
     });
   }
 
@@ -221,12 +153,9 @@ class _ProfileCardState extends State<_ProfileCard> {
     final user = FirebaseAuth.instance.currentUser;
     final name = user?.displayName ?? 'You';
     final googlePhotoUrl = user?.photoURL;
-    final localPath = getIt<UserProfileService>().localAvatarPath;
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
     final orbitLabel =
-        widget.friendCount == 1
-            ? '1 person in orbit'
-            : '${widget.friendCount} people in orbit';
+        friendCount == 1 ? '1 person in orbit' : '$friendCount people in orbit';
 
     return Container(
       width: double.infinity,
@@ -237,7 +166,7 @@ class _ProfileCardState extends State<_ProfileCard> {
       ),
       child: Row(
         children: [
-          // ── Avatar circle ─────────────────────────────────────────────────
+          // ── Avatar circle ──────────────────────────────────────────────────
           Container(
             width: 56,
             height: 56,
@@ -246,11 +175,11 @@ class _ProfileCardState extends State<_ProfileCard> {
               border: Border.all(color: AppColors.divider, width: 1.9),
             ),
             clipBehavior: Clip.antiAlias,
-            child: _buildAvatar(localPath, googlePhotoUrl, initial),
+            child: _buildAvatar(localAvatarPath, googlePhotoUrl, initial),
           ),
           const SizedBox(width: 12),
 
-          // ── Name + people count ───────────────────────────────────────────
+          // ── Name + people count ────────────────────────────────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,9 +198,9 @@ class _ProfileCardState extends State<_ProfileCard> {
           ),
           const SizedBox(width: 12),
 
-          // ── Edit chevron ──────────────────────────────────────────────────
+          // ── Edit chevron ───────────────────────────────────────────────────
           GestureDetector(
-            onTap: () => _openEditProfile(name),
+            onTap: () => _openEditProfile(context, name),
             child: CustomPaint(
               size: const Size(16, 16),
               painter: _ChevronRightPainter(),
@@ -287,12 +216,9 @@ class _ProfileCardState extends State<_ProfileCard> {
     String? googlePhotoUrl,
     String initial,
   ) {
-    // 1. Try local avatar (after editing).
     if (localPath != null && File(localPath).existsSync()) {
-      return Image.file(localPath as File, fit: BoxFit.cover);
+      return Image.file(File(localPath), fit: BoxFit.cover);
     }
-
-    // 2. Try Google photo.
     if (googlePhotoUrl != null) {
       return CachedNetworkImage(
         imageUrl: googlePhotoUrl,
@@ -300,15 +226,11 @@ class _ProfileCardState extends State<_ProfileCard> {
         errorWidget: (_, __, ___) => _avatarPlaceholder(initial),
       );
     }
-
-    // 3. Fallback: placeholder.
     return _avatarPlaceholder(initial);
   }
 
   Widget _avatarPlaceholder(String initial) {
     return Container(
-      width: 56,
-      height: 56,
       color: AppColors.background,
       child: Center(
         child: Text(
@@ -342,7 +264,7 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ─── Settings card (container for rows) ────────────────────────────────────────
+// ─── Settings card (container for rows) ──────────────────────────────────────
 
 class _SettingsCard extends StatelessWidget {
   const _SettingsCard({required this.children});
@@ -352,6 +274,7 @@ class _SettingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(20),
@@ -364,7 +287,7 @@ class _SettingsCard extends StatelessWidget {
   }
 }
 
-// ─── Hairline divider between rows ────────────────────────────────────────────
+// ─── Hairline divider between rows ───────────────────────────────────────────
 
 class _RowDivider extends StatelessWidget {
   const _RowDivider();
@@ -393,7 +316,7 @@ class _ToggleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -429,7 +352,7 @@ class _ValueRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -455,7 +378,6 @@ class _ValueRow extends StatelessWidget {
             ),
             const SizedBox(width: 4),
           ],
-          // Chevron >
           CustomPaint(
             size: const Size(16, 16),
             painter: _ChevronRightPainter(),
@@ -484,7 +406,6 @@ class _Toggle extends StatelessWidget {
         width: 51,
         height: 31,
         decoration: BoxDecoration(
-          // ON: #334155 (textSecondary), OFF: #E2E8F0 (divider)
           color: value ? AppColors.textSecondary : AppColors.divider,
           borderRadius: BorderRadius.circular(100),
         ),
@@ -545,11 +466,40 @@ class _ChevronRightPainter extends CustomPainter {
 class _BottomSection extends StatelessWidget {
   const _BottomSection();
 
+  Future<bool> _confirmDeleteAccount(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          builder:
+              (ctx) => AlertDialog(
+                title: const Text('Delete account?'),
+                content: const Text(
+                  'This will permanently delete your account and all your data. This cannot be undone.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text(
+                      'Delete',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
+                ],
+              ),
+        ) ??
+        false;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isLoading =
+        context.watch<SettingsBloc>().state.status == SettingsStatus.loading;
+
     return Column(
       children: [
-        // Version label
         Text(
           'InOrbit v1.0.0',
           style: AppTextStyles.labelRegular14.copyWith(
@@ -560,15 +510,12 @@ class _BottomSection extends StatelessWidget {
 
         // Log Out ghost button
         GestureDetector(
-          onTap: () async {
-            await getIt<AuthService>().signOut();
-            if (context.mounted) {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false, // clear entire stack
-              );
-            }
-          },
+          onTap:
+              isLoading
+                  ? null
+                  : () => context.read<SettingsBloc>().add(
+                    const SettingsLogOutRequested(),
+                  ),
           child: Container(
             width: double.infinity,
             height: 56,
@@ -585,23 +532,43 @@ class _BottomSection extends StatelessWidget {
               ],
             ),
             child: Center(
-              child: Text(
-                'Log Out',
-                style: AppTextStyles.bodyMedium16.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
+              child:
+                  isLoading
+                      ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : Text(
+                        'Log Out',
+                        style: AppTextStyles.bodyMedium16.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
             ),
           ),
         ),
         const SizedBox(height: 12),
 
         // Delete account
-        Text(
-          'Delete account',
-          style: AppTextStyles.labelRegular14.copyWith(
-            fontWeight: FontWeight.w500,
-            color: AppColors.cardBorder,
+        GestureDetector(
+          onTap:
+              isLoading
+                  ? null
+                  : () async {
+                    final confirmed = await _confirmDeleteAccount(context);
+                    if (confirmed && context.mounted) {
+                      context.read<SettingsBloc>().add(
+                        const SettingsDeleteAccountRequested(),
+                      );
+                    }
+                  },
+          child: Text(
+            'Delete account',
+            style: AppTextStyles.labelRegular14.copyWith(
+              fontWeight: FontWeight.w500,
+              color: AppColors.cardBorder,
+            ),
           ),
         ),
       ],

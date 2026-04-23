@@ -1,6 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:inorbit/core/services/notification_service.dart';
+import 'package:inorbit/data/local/app_database.dart';
 
 import '../di/injection.dart';
 import '../../domain/usecases/sync_data.dart';
@@ -71,6 +74,44 @@ class AuthService {
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
+  }
+
+  Future<void> deleteAccount() async {
+    await _ensureGoogleInitialized();
+    final user = _auth.currentUser;
+    if (user == null) return;
+    final uid = user.uid;
+
+    // Re-authenticate (required by Firebase for account deletion)
+    final googleUser = await _googleSignIn.authenticate();
+    final googleAuth = googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      idToken: googleAuth.idToken,
+    );
+    await user.reauthenticateWithCredential(credential);
+
+    // Delete Firestore data
+    final firestore = FirebaseFirestore.instance;
+    final friendsSnap = await firestore.collection('users/$uid/friends').get();
+    for (final doc in friendsSnap.docs) {
+      await doc.reference.delete();
+    }
+    final momentsSnap = await firestore.collection('users/$uid/moments').get();
+    for (final doc in momentsSnap.docs) {
+      await doc.reference.delete();
+    }
+    await firestore.doc('users/$uid').delete();
+
+    // Delete local SQLite data
+    final db = getIt<AppDatabase>();
+    await db.friendsDao.deleteNotInIds([], uid);
+
+    // Cancel all notifications
+    await NotificationService.instance.cancelAll();
+
+    // Delete Firebase Auth account + sign out Google
+    await user.delete();
+    await _googleSignIn.signOut();
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

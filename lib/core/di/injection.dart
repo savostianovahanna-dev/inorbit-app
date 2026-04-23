@@ -1,8 +1,10 @@
 import 'package:get_it/get_it.dart';
 import 'package:inorbit/bloc/add_friend/add_friend_bloc.dart';
+import 'package:inorbit/bloc/settings/settings_bloc.dart';
 import 'package:inorbit/core/services/cloudinary_service.dart';
 import 'package:inorbit/domain/usecases/add_friend.use_case.dart';
 import 'package:inorbit/domain/usecases/add_moment_use_case.dart';
+import 'package:inorbit/domain/usecases/delete_account_use_case.dart';
 
 import '../../data/local/app_database.dart';
 import '../../data/local/daos/friends_dao.dart';
@@ -79,9 +81,22 @@ void setupDependencies() {
     GetStatsUseCase(getIt<FriendRepository>(), getIt<MomentRepository>()),
   );
 
+  // Use cases available before login
+  getIt.registerLazySingleton<DeleteAccountUseCase>(
+    () => DeleteAccountUseCase(getIt<AuthService>()),
+  );
+
   // BLoCs — factory so each screen gets a fresh instance with its own state
   getIt.registerFactory<HomeBloc>(() => HomeBloc(getIt<WatchFriends>()));
   getIt.registerFactory<StatsBloc>(() => StatsBloc(getIt<GetStatsUseCase>()));
+  getIt.registerFactory<SettingsBloc>(
+    () => SettingsBloc(
+      deleteAccount: getIt<DeleteAccountUseCase>(),
+      authService: getIt<AuthService>(),
+      userProfileService: getIt<UserProfileService>(),
+      notificationService: getIt<NotificationService>(),
+    ),
+  );
 }
 
 /// Called once after successful login to wire up Firestore + synced repos.

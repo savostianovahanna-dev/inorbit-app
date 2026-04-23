@@ -346,4 +346,10 @@ class NotificationService {
     };
     return offsetToZone[offsetHours] ?? 'UTC';
   }
+
+  Future<void> cancelAll() async {
+    await _plugin.cancelAll();
+    _scheduledBirthdayIds.clear();
+    _scheduledOrbitIds.clear();
+  }
 }
