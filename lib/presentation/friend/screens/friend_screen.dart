@@ -11,7 +11,7 @@ import '../widgets/history_section.dart';
 import '../widgets/profile_hero.dart';
 import '../widgets/topics_section.dart';
 import 'edit_friend_screen.dart';
-import 'log_moment_screen.dart';
+import 'log_moment_screen_v2.dart';
 
 /// Friend profile screen (Figma node 56-6064 "Friend").
 ///
@@ -27,19 +27,10 @@ class FriendScreen extends StatelessWidget {
       context: context,
       builder:
           (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Text(
-              'Remove ${friend.name.split(' ').first}?',
-              style: AppTextStyles.bodyMedium16.copyWith(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            backgroundColor: AppColors.white,
+            title: Text('Remove ${friend.name.split(' ').first}?'),
             content: Text(
               'This will permanently delete them and all their moments.',
-              style: AppTextStyles.bodyRegular14,
             ),
             actions: [
               TextButton(
@@ -93,57 +84,63 @@ class FriendScreen extends StatelessWidget {
             }
 
             return StreamBuilder<List<Moment>>(
-              stream: getIt<MomentRepository>().watchMomentsForFriend(friend.id),
+              stream: getIt<MomentRepository>().watchMomentsForFriend(
+                friend.id,
+              ),
               builder: (context, momentSnap) {
                 final moments = momentSnap.data ?? [];
 
-                return Stack(
-                  children: [
-                    // Scrollable content with bottom padding for sticky button
-                    SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: EdgeInsets.fromLTRB(16, 8, 16, 80 + bottomPad),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          FriendHeader(
-                            name: liveFriend.name,
-                            onDelete: () => _confirmDelete(context),
-                            onEdit: () => Navigator.push(
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, bottomPad + 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      FriendHeader(
+                        name: liveFriend.name,
+                        onDelete: () => _confirmDelete(context),
+                        onEdit:
+                            () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    EditFriendScreen(friend: liveFriend),
+                                builder:
+                                    (_) => EditFriendScreen(
+                                      friend: liveFriend,
+                                    ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          ProfileHero(friend: liveFriend),
-                          if (liveFriend.notes != null &&
-                              liveFriend.notes!.isNotEmpty) ...[
-                            const SizedBox(height: 20),
-                            Text(
-                              liveFriend.notes!,
-                              style: AppTextStyles.bodyRegular14,
-                            ),
-                          ],
-                          const SizedBox(height: 20),
-                          TopicsSection(friend: liveFriend),
-                          const SizedBox(height: 20),
-                          HistorySection(moments: moments),
-                          const SizedBox(height: 24),
-                        ],
                       ),
-                    ),
-
-                    // Sticky "Log moment" button pinned above safe area bottom
-                    Positioned(
-                      bottom: bottomPad + 16,
-                      left: 16,
-                      right: 16,
-                      child: _LogMomentButton(friend: liveFriend),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      ProfileHero(friend: liveFriend),
+                      if (liveFriend.notes != null &&
+                          liveFriend.notes!.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        Text(
+                          liveFriend.notes!,
+                          style: AppTextStyles.bodyRegular14,
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      TopicsSection(friend: liveFriend),
+                      const SizedBox(height: 20),
+                      HistorySection(
+                        moments: moments,
+                        onAdd: () {
+                          final variant = moments.length % 2 == 0 ? 1 : 2;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => LogMomentScreenV2(
+                                friend: liveFriend,
+                                variant: variant,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 );
               },
             );
@@ -152,68 +149,4 @@ class FriendScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-class _LogMomentButton extends StatelessWidget {
-  const _LogMomentButton({required this.friend});
-
-  final Friend friend;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => LogMomentScreen(friend: friend),
-        ),
-      ),
-      child: Container(
-        height: 56,
-        decoration: BoxDecoration(
-          color: AppColors.buttonDark,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 30,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CustomPaint(painter: _PlusIconPainter()),
-            ),
-            const SizedBox(width: 12),
-            Text('Log moment', style: AppTextStyles.logButtonLabel),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PlusIconPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.white
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round;
-
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    const arm = 5.83; // half of 11.67px from Figma
-
-    canvas.drawLine(Offset(cx - arm, cy), Offset(cx + arm, cy), paint);
-    canvas.drawLine(Offset(cx, cy - arm), Offset(cx, cy + arm), paint);
-  }
-
-  @override
-  bool shouldRepaint(_PlusIconPainter old) => false;
 }

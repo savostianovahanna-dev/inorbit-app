@@ -27,11 +27,7 @@ class MomentData {
 
 /// Single moment entry inside the history card.
 class MomentCard extends StatelessWidget {
-  const MomentCard({
-    super.key,
-    required this.moment,
-    this.onDelete,
-  });
+  const MomentCard({super.key, required this.moment, this.onDelete});
 
   final MomentData moment;
   final VoidCallback? onDelete;
@@ -96,6 +92,7 @@ class _MomentMenuButton extends StatelessWidget {
       offset: const Offset(0, 28),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       padding: EdgeInsets.zero,
+      color: AppColors.white,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         child: CustomPaint(
@@ -103,15 +100,16 @@ class _MomentMenuButton extends StatelessWidget {
           painter: _ThreeDotsHPainter(),
         ),
       ),
-      itemBuilder: (_) => [
-        PopupMenuItem(
-          value: 'delete',
-          child: Text(
-            'Delete',
-            style: AppTextStyles.bodyRegular14.copyWith(color: Colors.red),
-          ),
-        ),
-      ],
+      itemBuilder:
+          (_) => [
+            PopupMenuItem(
+              value: 'delete',
+              child: Text(
+                'Delete',
+                style: AppTextStyles.bodyRegular14.copyWith(color: Colors.red),
+              ),
+            ),
+          ],
     );
   }
 }
@@ -119,9 +117,10 @@ class _MomentMenuButton extends StatelessWidget {
 class _ThreeDotsHPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.textPrimary
-      ..style = PaintingStyle.fill;
+    final paint =
+        Paint()
+          ..color = AppColors.textPrimary
+          ..style = PaintingStyle.fill;
     final cy = size.height / 2;
     final cx = size.width / 2;
     const r = 1.5;
@@ -219,9 +218,7 @@ class _PhotoThumbnails extends StatelessWidget {
                       fit: StackFit.expand,
                       children: [
                         _img(paths[1], height: photoH),
-                        Container(
-                          color: Colors.black.withValues(alpha: 0.5),
-                        ),
+                        Container(color: Colors.black.withValues(alpha: 0.5)),
                       ],
                     ),
                   ),
@@ -325,31 +322,34 @@ class _PhotoPopup extends StatelessWidget {
                   // ── Moment info ─────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 52, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          moment.emoji,
-                          style: const TextStyle(fontSize: 18, height: 1),
+                        Row(
+                          children: [
+                            Text(
+                              moment.emoji,
+                              style: const TextStyle(fontSize: 18, height: 1),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              moment.title,
+                              style: AppTextStyles.momentTitle,
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Text(moment.title, style: AppTextStyles.momentTitle),
+                        const SizedBox(height: 4),
+                        Text(moment.date, style: AppTextStyles.momentDate),
+                        if (moment.description.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            moment.description,
+                            style: AppTextStyles.bodyRegular14,
+                          ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(moment.date, style: AppTextStyles.momentDate),
-                    if (moment.description.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        moment.description,
-                        style: AppTextStyles.bodyRegular14,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+                  ),
 
                   // ── Photos — one per row ──────────────────────────────
                   const SizedBox(height: 16),

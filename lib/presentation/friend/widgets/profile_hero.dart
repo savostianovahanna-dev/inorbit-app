@@ -26,8 +26,18 @@ class ProfileHero extends StatelessWidget {
     if (friend.birthday == null) return '';
     final d = friend.birthday!;
     const m = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '🎂 ${m[d.month - 1]} ${d.day}';
   }
@@ -57,7 +67,7 @@ class ProfileHero extends StatelessWidget {
     }
     if (friend.planetIndex != null) {
       return Image.asset(
-        'assets/images/planets/planet_${friend.planetIndex! + 1}.png',
+        'assets/images/planets/planet_${friend.planetIndex!}.png',
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,

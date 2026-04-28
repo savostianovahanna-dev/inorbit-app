@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -65,7 +66,8 @@ class _MenuButton extends StatelessWidget {
         if (action == _MenuAction.delete) onDelete?.call();
       },
       offset: const Offset(0, 36),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: AppColors.white,
       child: SizedBox(
         width: 40,
         height: 40,
@@ -81,9 +83,7 @@ class _MenuButton extends StatelessWidget {
               value: _MenuAction.delete,
               child: Text(
                 'Delete',
-                style: AppTextStyles.bodyRegular14.copyWith(
-                  color: Colors.red,
-                ),
+                style: AppTextStyles.bodyRegular14.copyWith(color: Colors.red),
               ),
             ),
           ],
@@ -96,20 +96,22 @@ enum _MenuAction { edit, delete }
 class _ChevronPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.textPrimary
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
+    final paint =
+        Paint()
+          ..color = AppColors.textPrimary
+          ..strokeWidth = 1.5
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..style = PaintingStyle.stroke;
 
     final cx = size.width / 2;
     final cy = size.height / 2;
 
-    final path = Path()
-      ..moveTo(cx + 3, cy - 6)
-      ..lineTo(cx - 3, cy)
-      ..lineTo(cx + 3, cy + 6);
+    final path =
+        Path()
+          ..moveTo(cx + 3, cy - 6)
+          ..lineTo(cx - 3, cy)
+          ..lineTo(cx + 3, cy + 6);
 
     canvas.drawPath(path, paint);
   }
@@ -121,9 +123,10 @@ class _ChevronPainter extends CustomPainter {
 class _ThreeDotPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.textPrimary
-      ..style = PaintingStyle.fill;
+    final paint =
+        Paint()
+          ..color = AppColors.textPrimary
+          ..style = PaintingStyle.fill;
 
     final cy = size.height / 2;
     final cx = size.width / 2;

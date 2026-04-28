@@ -142,7 +142,7 @@ class _Avatar extends StatelessWidget {
     if (friend.planetIndex != null) {
       return ClipOval(
         child: Image.asset(
-          'assets/images/planets/planet_${friend.planetIndex! + 1}.png',
+          'assets/images/planets/planet_${friend.planetIndex!}.png',
           width: 48,
           height: 48,
           fit: BoxFit.cover,

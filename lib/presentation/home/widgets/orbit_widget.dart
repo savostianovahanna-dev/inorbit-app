@@ -16,8 +16,8 @@ class _RingSpec {
   const _RingSpec({
     required this.tier,
     required this.rxFactor, // radius-x as a fraction of container width
-    required this.ry,       // radius-y in logical pixels (fixed)
-    required this.seconds,  // seconds for one full orbit
+    required this.ry, // radius-y in logical pixels (fixed)
+    required this.seconds, // seconds for one full orbit
   });
   final String tier;
   final double rxFactor;
@@ -27,13 +27,13 @@ class _RingSpec {
 
 const _kRings = [
   _RingSpec(tier: 'inner_circle', rxFactor: 0.145, ry: 33, seconds: 20),
-  _RingSpec(tier: 'regulars',     rxFactor: 0.265, ry: 59, seconds: 35),
-  _RingSpec(tier: 'casuals',      rxFactor: 0.400, ry: 85, seconds: 50),
+  _RingSpec(tier: 'regulars', rxFactor: 0.265, ry: 59, seconds: 35),
+  _RingSpec(tier: 'casuals', rxFactor: 0.400, ry: 85, seconds: 50),
 ];
 
-const _kAvatarSize   = 36.0; // friend avatars
-const _kUserSize     = 44.0; // center user avatar
-const _kContainerH   = 220.0;
+const _kAvatarSize = 36.0; // friend avatars
+const _kUserSize = 44.0; // center user avatar
+const _kContainerH = 220.0;
 
 // ─── Widget ───────────────────────────────────────────────────────────────────
 
@@ -51,6 +51,7 @@ class OrbitWidget extends StatefulWidget {
   final String? userAvatarPath;
   final String userInitials;
   final ValueChanged<Friend>? onFriendTap;
+
   /// When provided, overrides the default height calculation.
   final double? height;
 
@@ -97,11 +98,9 @@ class _OrbitWidgetState extends State<OrbitWidget>
 
         // Use explicit height if provided, otherwise at least 50 % of screen
         // height and never less than the original 220 px.
-        final containerH = widget.height ??
-            math.max(
-              _kContainerH,
-              MediaQuery.of(context).size.height * 0.5,
-            );
+        final containerH =
+            widget.height ??
+            math.max(_kContainerH, MediaQuery.of(context).size.height * 0.5);
         final cy = containerH / 2;
 
         return ClipRRect(
@@ -128,26 +127,25 @@ class _OrbitWidgetState extends State<OrbitWidget>
 
                 // ── Layer 2: rings (static, redrawn only on resize) ────────
                 Positioned.fill(
-                  child: CustomPaint(
-                    painter: _RingsPainter(containerWidth: w),
-                  ),
+                  child: CustomPaint(painter: _RingsPainter(containerWidth: w)),
                 ),
 
                 // ── Layer 3: friend avatars (animated every frame) ─────────
                 AnimatedBuilder(
                   animation: _merged,
-                  builder: (context, _) => Stack(
-                    children: [
-                      for (int i = 0; i < _kRings.length; i++)
-                        ..._friendAvatars(
-                          ring: _kRings[i],
-                          cx: cx,
-                          cy: cy,
-                          containerWidth: w,
-                          t: _controllers[i].value,
-                        ),
-                    ],
-                  ),
+                  builder:
+                      (context, _) => Stack(
+                        children: [
+                          for (int i = 0; i < _kRings.length; i++)
+                            ..._friendAvatars(
+                              ring: _kRings[i],
+                              cx: cx,
+                              cy: cy,
+                              containerWidth: w,
+                              t: _controllers[i].value,
+                            ),
+                        ],
+                      ),
                 ),
 
                 // ── Layer 4: center user avatar (static) ───────────────────
@@ -180,9 +178,9 @@ class _OrbitWidgetState extends State<OrbitWidget>
         widget.friends.where((f) => f.orbitTier == ring.tier).toList();
     if (friends.isEmpty) return const [];
 
-    final rx   = containerWidth * ring.rxFactor;
-    final ry   = ring.ry;
-    final n    = friends.length;
+    final rx = containerWidth * ring.rxFactor;
+    final ry = ring.ry;
+    final n = friends.length;
     final cosT = math.cos(_kTilt);
     final sinT = math.sin(_kTilt);
     final half = _kAvatarSize / 2;
@@ -204,13 +202,13 @@ class _OrbitWidgetState extends State<OrbitWidget>
           final friend = friends[i];
           return Positioned(
             left: px - half,
-            top:  py - half,
+            top: py - half,
             child: GestureDetector(
               onTap: () => widget.onFriendTap?.call(friend),
               child: _FriendAvatar(
-                initials:    _initials(friend.name),
-                isOverdue:   friend.isOverdue,
-                avatarPath:  friend.avatarPath,
+                initials: _initials(friend.name),
+                isOverdue: friend.isOverdue,
+                avatarPath: friend.avatarPath,
                 planetIndex: friend.planetIndex,
               ),
             ),
@@ -246,10 +244,11 @@ class _RingsPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.15)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
+    final paint =
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.15)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0;
 
     // Translate to center, rotate, draw, restore.
     canvas.save();
@@ -260,7 +259,7 @@ class _RingsPainter extends CustomPainter {
       canvas.drawOval(
         Rect.fromCenter(
           center: Offset.zero,
-          width:  containerWidth * ring.rxFactor * 2,
+          width: containerWidth * ring.rxFactor * 2,
           height: ring.ry * 2,
         ),
         paint,
@@ -271,8 +270,7 @@ class _RingsPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RingsPainter old) =>
-      old.containerWidth != containerWidth;
+  bool shouldRepaint(_RingsPainter old) => old.containerWidth != containerWidth;
 }
 
 // ─── Avatars ──────────────────────────────────────────────────────────────────
@@ -299,7 +297,7 @@ class _FriendAvatar extends StatelessWidget {
     }
     if (planetIndex != null) {
       return DecorationImage(
-        image: AssetImage('assets/images/planets/planet_${planetIndex! + 1}.png'),
+        image: AssetImage('assets/images/planets/planet_${planetIndex!}.png'),
         fit: BoxFit.cover,
       );
     }
@@ -317,27 +315,26 @@ class _FriendAvatar extends StatelessWidget {
         color: const Color(0xFF1E3A6E),
         image: _image,
         // Only overdue friends get the orange attention ring; non-overdue have no stroke.
-        border: isOverdue
-            ? Border.all(color: AppColors.orange, width: 2.0)
-            : null,
+        border:
+            isOverdue ? Border.all(color: AppColors.orange, width: 2.0) : null,
         boxShadow: const [
-          BoxShadow(color: Color(0x2EFFFFFF), blurRadius: 4,  spreadRadius: 0),
-          BoxShadow(color: Color(0x1FFFFFFF), blurRadius: 8,  spreadRadius: 1),
+          BoxShadow(color: Color(0x2EFFFFFF), blurRadius: 4, spreadRadius: 0),
+          BoxShadow(color: Color(0x1FFFFFFF), blurRadius: 8, spreadRadius: 1),
           BoxShadow(color: Color(0x12FFFFFF), blurRadius: 16, spreadRadius: 2),
           BoxShadow(color: Color(0x0AFFFFFF), blurRadius: 24, spreadRadius: 3),
         ],
       ),
       alignment: Alignment.center,
-      child: hasImage ? null : Text(initials, style: AppTextStyles.avatarInitials12),
+      child:
+          hasImage
+              ? null
+              : Text(initials, style: AppTextStyles.avatarInitials12),
     );
   }
 }
 
 class _UserAvatar extends StatelessWidget {
-  const _UserAvatar({
-    required this.initials,
-    this.avatarPath,
-  });
+  const _UserAvatar({required this.initials, this.avatarPath});
 
   final String initials;
   final String? avatarPath;
@@ -352,12 +349,13 @@ class _UserAvatar extends StatelessWidget {
         color: const Color(0xFF1E3A6E),
         border: Border.all(color: AppColors.white, width: 2.5),
         // avatarPath is a local file path (from image_picker), not an asset.
-        image: avatarPath != null
-            ? DecorationImage(
-                image: FileImage(File(avatarPath!)),
-                fit: BoxFit.cover,
-              )
-            : null,
+        image:
+            avatarPath != null
+                ? DecorationImage(
+                  image: FileImage(File(avatarPath!)),
+                  fit: BoxFit.cover,
+                )
+                : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.35),
@@ -367,9 +365,10 @@ class _UserAvatar extends StatelessWidget {
         ],
       ),
       alignment: Alignment.center,
-      child: avatarPath == null
-          ? Text(initials, style: AppTextStyles.avatarInitials12)
-          : null,
+      child:
+          avatarPath == null
+              ? Text(initials, style: AppTextStyles.avatarInitials12)
+              : null,
     );
   }
 }

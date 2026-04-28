@@ -13,17 +13,23 @@ import '../../../domain/usecases/add_moment_use_case.dart';
 import '../../../shared/widgets/dark_button.dart';
 import '../../../shared/widgets/multiline_text_field.dart';
 
-/// "Log a moment" screen — Figma node 173-7231.
-class LogMomentScreen extends StatefulWidget {
-  const LogMomentScreen({super.key, required this.friend});
+/// "Log a moment" screen — same visuals as LogMomentScreen but the submit
+/// button scrolls with content instead of being pinned to the bottom.
+class LogMomentScreenV2 extends StatefulWidget {
+  const LogMomentScreenV2({
+    super.key,
+    required this.friend,
+    this.variant = 1,
+  });
 
   final Friend friend;
+  final int variant;
 
   @override
-  State<LogMomentScreen> createState() => _LogMomentScreenState();
+  State<LogMomentScreenV2> createState() => _LogMomentScreenV2State();
 }
 
-class _LogMomentScreenState extends State<LogMomentScreen> {
+class _LogMomentScreenV2State extends State<LogMomentScreenV2> {
   _ActivityType _selectedActivity = _ActivityType.coffee;
   _WhenOption _when = _WhenOption.today;
   DateTime? _customDate;
@@ -74,74 +80,71 @@ class _LogMomentScreenState extends State<LogMomentScreen> {
 
     showCupertinoModalPopup<void>(
       context: context,
-      builder:
-          (ctx) => Container(
-            decoration: const BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: AppColors.divider, width: 0.5),
+                ),
               ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 14,
-                  ),
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: AppColors.divider, width: 0.5),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(ctx),
+                    child: Text(
+                      'Cancel',
+                      style: AppTextStyles.bodyRegular14.copyWith(
+                        color: AppColors.cardBorder,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(ctx),
-                        child: Text(
-                          'Cancel',
-                          style: AppTextStyles.bodyRegular14.copyWith(
-                            color: AppColors.cardBorder,
-                            fontSize: 16,
-                          ),
-                        ),
+                  Text('When?', style: AppTextStyles.headerTitle),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _customDate = temp;
+                        _when = _WhenOption.custom;
+                      });
+                      Navigator.pop(ctx);
+                    },
+                    child: Text(
+                      'Done',
+                      style: AppTextStyles.headerTitle.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
-                      Text('When?', style: AppTextStyles.headerTitle),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _customDate = temp;
-                            _when = _WhenOption.custom;
-                          });
-                          Navigator.pop(ctx);
-                        },
-                        child: Text(
-                          'Done',
-                          style: AppTextStyles.headerTitle.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-                SizedBox(
-                  height: 216,
-                  child: CupertinoDatePicker(
-                    mode: CupertinoDatePickerMode.date,
-                    initialDateTime: temp,
-                    maximumDate: now,
-                    minimumYear: 1900,
-                    onDateTimeChanged: (d) => temp = d,
-                  ),
-                ),
-                SizedBox(height: MediaQuery.of(ctx).padding.bottom),
-              ],
+                ],
+              ),
             ),
-          ),
+            SizedBox(
+              height: 216,
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.date,
+                initialDateTime: temp,
+                maximumDate: now,
+                minimumYear: 1900,
+                onDateTimeChanged: (d) => temp = d,
+              ),
+            ),
+            SizedBox(height: MediaQuery.of(ctx).padding.bottom),
+          ],
+        ),
+      ),
     );
   }
 
@@ -152,9 +155,8 @@ class _LogMomentScreenState extends State<LogMomentScreen> {
     try {
       final date = switch (_when) {
         _WhenOption.today => DateTime.now(),
-        _WhenOption.yesterday => DateTime.now().subtract(
-          const Duration(days: 1),
-        ),
+        _WhenOption.yesterday =>
+          DateTime.now().subtract(const Duration(days: 1)),
         _WhenOption.custom => _customDate ?? DateTime.now(),
       };
 
@@ -163,10 +165,9 @@ class _LogMomentScreenState extends State<LogMomentScreen> {
         friendId: widget.friend.id,
         type: _selectedActivity.name,
         date: date,
-        note:
-            _noteController.text.trim().isEmpty
-                ? null
-                : _noteController.text.trim(),
+        note: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
         photoPaths: List.unmodifiable(_photos),
         createdAt: DateTime.now(),
       );
@@ -192,75 +193,69 @@ class _LogMomentScreenState extends State<LogMomentScreen> {
         behavior: HitTestBehavior.opaque,
         child: SafeArea(
           bottom: false,
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomPad),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _LogHeader(),
+                const SizedBox(height: 20),
+
+                _FriendMiniCard(friend: widget.friend),
+                const SizedBox(height: 20),
+
+                Text(
+                  'How did you connect?',
+                  style: AppTextStyles.sectionHeading,
+                ),
+                const SizedBox(height: 8),
+                _ActivityGrid(
+                  selected: _selectedActivity,
+                  onSelect: (t) => setState(() => _selectedActivity = t),
+                ),
+                const SizedBox(height: 20),
+
+                Text('When?', style: AppTextStyles.sectionHeading),
+                const SizedBox(height: 8),
+                _WhenRow(
+                  selected: _when,
+                  customDate: _customDate,
+                  onSelect: (w) => setState(() => _when = w),
+                  onPickDate: _showWhenDatePicker,
+                ),
+                const SizedBox(height: 20),
+
+                Text('Add photos', style: AppTextStyles.sectionHeading),
+                const SizedBox(height: 8),
+                _PhotosRow(
+                  photos: _photos,
+                  onPhotoAdded: _addPhoto,
+                ),
+                const SizedBox(height: 20),
+
+                SizedBox(
+                  key: _notesKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _LogHeader(),
-                      const SizedBox(height: 20),
-
-                      // _FriendMiniCard(friend: widget.friend),
-                      // const SizedBox(height: 20),
                       Text(
-                        'How did you connect?',
+                        'What happened?',
                         style: AppTextStyles.sectionHeading,
                       ),
                       const SizedBox(height: 8),
-                      _ActivityGrid(
-                        selected: _selectedActivity,
-                        onSelect: (t) => setState(() => _selectedActivity = t),
-                      ),
-                      const SizedBox(height: 20),
-
-                      Text('When?', style: AppTextStyles.sectionHeading),
-                      const SizedBox(height: 8),
-                      _WhenRow(
-                        selected: _when,
-                        customDate: _customDate,
-                        onSelect: (w) => setState(() => _when = w),
-                        onPickDate: _showWhenDatePicker,
-                      ),
-                      const SizedBox(height: 20),
-
-                      Text('Add photos', style: AppTextStyles.sectionHeading),
-                      const SizedBox(height: 8),
-                      _PhotosRow(photos: _photos, onPhotoAdded: _addPhoto),
-                      const SizedBox(height: 20),
-
-                      // Keyed so Scrollable.ensureVisible can scroll to it
-                      SizedBox(
-                        key: _notesKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'What happened?',
-                              style: AppTextStyles.sectionHeading,
-                            ),
-                            const SizedBox(height: 8),
-                            MultilineTextField(
-                              controller: _noteController,
-                              focusNode: _notesFocusNode,
-                              hintText: 'Caught up at the usual spot...',
-                            ),
-                          ],
-                        ),
+                      MultilineTextField(
+                        controller: _noteController,
+                        focusNode: _notesFocusNode,
+                        hintText: 'Caught up at the usual spot...',
                       ),
                     ],
                   ),
                 ),
-              ),
 
-              // Always sits at true bottom; rises above keyboard automatically
-              Padding(
-                padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomPad),
-                child: DarkButton(
+                const SizedBox(height: 24),
+                DarkButton(
                   label: 'Log moment',
                   onTap: _saving ? null : _logMoment,
                   saving: _saving,
@@ -270,8 +265,8 @@ class _LogMomentScreenState extends State<LogMomentScreen> {
                     child: CustomPaint(painter: _PlusPainter()),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -313,13 +308,12 @@ class _LogHeader extends StatelessWidget {
 class _ChevronPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = AppColors.textPrimary
-          ..strokeWidth = 1.5
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
-          ..style = PaintingStyle.stroke;
+    final paint = Paint()
+      ..color = AppColors.textPrimary
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
     final cx = size.width / 2;
     final cy = size.height / 2;
     canvas.drawPath(
@@ -360,7 +354,7 @@ class _FriendMiniCard extends StatelessWidget {
     }
     if (friend.planetIndex != null) {
       return Image.asset(
-        'assets/images/planets/planet_${friend.planetIndex!}.png',
+        'assets/images/planets/planet_${friend.planetIndex! + 1}.png',
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
@@ -413,24 +407,24 @@ enum _ActivityType { coffee, call, text, dinner, movie, shopping, other }
 
 extension _ActivityTypeX on _ActivityType {
   String get emoji => switch (this) {
-    _ActivityType.coffee => '☕',
-    _ActivityType.call => '📞',
-    _ActivityType.text => '💬',
-    _ActivityType.dinner => '🍽',
-    _ActivityType.movie => '🎬',
-    _ActivityType.shopping => '🛍',
-    _ActivityType.other => '✨',
-  };
+        _ActivityType.coffee => '☕',
+        _ActivityType.call => '📞',
+        _ActivityType.text => '💬',
+        _ActivityType.dinner => '🍽',
+        _ActivityType.movie => '🎬',
+        _ActivityType.shopping => '🛍',
+        _ActivityType.other => '✨',
+      };
 
   String get label => switch (this) {
-    _ActivityType.coffee => 'Coffee',
-    _ActivityType.call => 'Call',
-    _ActivityType.text => 'Text',
-    _ActivityType.dinner => 'Dinner',
-    _ActivityType.movie => 'Movie',
-    _ActivityType.shopping => 'Shopping',
-    _ActivityType.other => 'Other',
-  };
+        _ActivityType.coffee => 'Coffee',
+        _ActivityType.call => 'Call',
+        _ActivityType.text => 'Text',
+        _ActivityType.dinner => 'Dinner',
+        _ActivityType.movie => 'Movie',
+        _ActivityType.shopping => 'Shopping',
+        _ActivityType.other => 'Other',
+      };
 }
 
 class _ActivityGrid extends StatelessWidget {
@@ -443,16 +437,13 @@ class _ActivityGrid extends StatelessWidget {
     return Wrap(
       spacing: 6,
       runSpacing: 6,
-      children:
-          _ActivityType.values
-              .map(
-                (t) => _ActivityChip(
-                  type: t,
-                  isSelected: selected == t,
-                  onTap: () => onSelect(t),
-                ),
-              )
-              .toList(),
+      children: _ActivityType.values
+          .map((t) => _ActivityChip(
+                type: t,
+                isSelected: selected == t,
+                onTap: () => onSelect(t),
+              ))
+          .toList(),
     );
   }
 }
@@ -477,8 +468,9 @@ class _ActivityChip extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color:
-                isSelected ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            color: isSelected
+                ? const Color(0xFF334155)
+                : const Color(0xFFE2E8F0),
             width: 1,
           ),
         ),
@@ -512,17 +504,16 @@ class _ActivityChip extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(
                       type.label,
-                      style:
-                          isSelected
-                              ? AppTextStyles.tagLabel.copyWith(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              )
-                              : AppTextStyles.bodyRegular14.copyWith(
-                                color: const Color(0xFF334155),
-                                fontSize: 14,
-                              ),
+                      style: isSelected
+                          ? AppTextStyles.tagLabel.copyWith(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            )
+                          : AppTextStyles.bodyRegular14.copyWith(
+                              color: const Color(0xFF334155),
+                              fontSize: 14,
+                            ),
                     ),
                   ],
                 ),
@@ -604,8 +595,9 @@ class _WhenChip extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color:
-                isSelected ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            color: isSelected
+                ? const Color(0xFF334155)
+                : const Color(0xFFE2E8F0),
             width: 1,
           ),
         ),
@@ -625,7 +617,9 @@ class _WhenChip extends StatelessWidget {
                 child: Text(
                   label,
                   style: AppTextStyles.bodyMedium16.copyWith(
-                    color: isSelected ? Colors.white : const Color(0xFF334155),
+                    color: isSelected
+                        ? Colors.white
+                        : const Color(0xFF334155),
                     fontSize: 14,
                   ),
                 ),
@@ -648,7 +642,6 @@ class _DateInputChip extends StatelessWidget {
   final VoidCallback onTap;
   final DateTime? date;
 
-  /// Shows the picked date as DD/MM, or the placeholder when nothing chosen.
   String get _label {
     if (date == null) return 'DD/MM';
     final d = date!.day.toString().padLeft(2, '0');
@@ -666,8 +659,9 @@ class _DateInputChip extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color:
-                isSelected ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            color: isSelected
+                ? const Color(0xFF334155)
+                : const Color(0xFFE2E8F0),
             width: 1,
           ),
         ),
@@ -692,12 +686,11 @@ class _DateInputChip extends StatelessWidget {
                       _label,
                       style: AppTextStyles.bodyRegular14.copyWith(
                         fontSize: 14,
-                        color:
-                            isSelected
-                                ? Colors.white
-                                : (date != null
-                                    ? AppColors.textPrimary
-                                    : const Color(0xFF96A8C2)),
+                        color: isSelected
+                            ? Colors.white
+                            : (date != null
+                                ? AppColors.textPrimary
+                                : const Color(0xFF96A8C2)),
                       ),
                     ),
                     Image.asset(
@@ -741,38 +734,37 @@ class _PhotosRowState extends State<_PhotosRow> {
     showModalBottomSheet<void>(
       context: ctx,
       backgroundColor: Colors.transparent,
-      builder:
-          (_) => Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.all(Radius.circular(28)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 8),
-                  _SheetButton(
-                    label: '📷  Take a photo',
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _pickImage(fromCamera: true);
-                    },
-                  ),
-                  const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                  _SheetButton(
-                    label: '🖼  Choose from gallery',
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _pickImage(fromCamera: false);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.all(Radius.circular(28)),
           ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              _SheetButton(
+                label: '📷  Take a photo',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(fromCamera: true);
+                },
+              ),
+              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              _SheetButton(
+                label: '🖼  Choose from gallery',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(fromCamera: false);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -782,11 +774,12 @@ class _PhotosRowState extends State<_PhotosRow> {
       spacing: 8,
       runSpacing: 8,
       children: [
-        // One slot per saved photo
         for (final path in widget.photos)
           _PhotoSlot(imagePath: path, onTap: () {}),
-        // Always one trailing + slot to add the next photo
-        _PhotoSlot(imagePath: null, onTap: () => _showPicker(context)),
+        _PhotoSlot(
+          imagePath: null,
+          onTap: () => _showPicker(context),
+        ),
       ],
     );
   }
@@ -828,31 +821,30 @@ class _PhotoSlot extends StatelessWidget {
       child: SizedBox(
         width: 83,
         height: 80,
-        child:
-            imagePath != null
-                ? ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.file(
-                    File(imagePath!),
-                    fit: BoxFit.cover,
-                    width: 83,
-                    height: 80,
-                  ),
-                )
-                : CustomPaint(
-                  painter: _DashedBorderPainter(),
-                  child: Center(
-                    child: Text(
-                      '+',
-                      style: AppTextStyles.headerTitle.copyWith(
-                        fontSize: 24,
-                        color: const Color(0xFF96A8C2),
-                        fontWeight: FontWeight.w500,
-                        height: 1,
-                      ),
+        child: imagePath != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.file(
+                  File(imagePath!),
+                  fit: BoxFit.cover,
+                  width: 83,
+                  height: 80,
+                ),
+              )
+            : CustomPaint(
+                painter: _DashedBorderPainter(),
+                child: Center(
+                  child: Text(
+                    '+',
+                    style: AppTextStyles.headerTitle.copyWith(
+                      fontSize: 24,
+                      color: const Color(0xFF96A8C2),
+                      fontWeight: FontWeight.w500,
+                      height: 1,
                     ),
                   ),
                 ),
+              ),
       ),
     );
   }
@@ -866,12 +858,11 @@ class _DashedBorderPainter extends CustomPainter {
     const radius = 16.0;
     const sw = 1.0;
 
-    final paint =
-        Paint()
-          ..color = const Color(0xFF96A8C2)
-          ..strokeWidth = sw
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.butt;
+    final paint = Paint()
+      ..color = const Color(0xFF96A8C2)
+      ..strokeWidth = sw
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.butt;
 
     final rrect = RRect.fromRectAndRadius(
       Rect.fromLTWH(sw / 2, sw / 2, size.width - sw, size.height - sw),
@@ -900,11 +891,10 @@ class _DashedBorderPainter extends CustomPainter {
 class _PlusPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = AppColors.white
-          ..strokeWidth = 1.5
-          ..strokeCap = StrokeCap.round;
+    final paint = Paint()
+      ..color = AppColors.white
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
     final cx = size.width / 2;
     final cy = size.height / 2;
     const arm = 5.83;

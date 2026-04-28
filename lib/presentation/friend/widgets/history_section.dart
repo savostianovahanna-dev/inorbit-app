@@ -6,13 +6,14 @@ import '../../../domain/entities/moment.dart';
 import '../../../domain/repositories/moment_repository.dart';
 import 'moment_card.dart';
 
-/// "History" section — a heading followed by a white card containing
-/// moment entries separated by dashed dividers.
+/// "Moments" section — a heading (with + button) followed by a white card
+/// containing moment entries separated by dashed dividers.
 /// Accepts real [moments] from the DB; shows a placeholder when empty.
 class HistorySection extends StatelessWidget {
-  const HistorySection({super.key, required this.moments});
+  const HistorySection({super.key, required this.moments, required this.onAdd});
 
   final List<Moment> moments;
+  final VoidCallback onAdd;
 
   static const _typeEmoji = {
     'coffee': '☕',
@@ -35,8 +36,18 @@ class HistorySection extends StatelessWidget {
   };
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   Future<void> _confirmDelete(BuildContext context, Moment moment) async {
@@ -44,19 +55,11 @@ class HistorySection extends StatelessWidget {
       context: context,
       builder:
           (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Text(
-              'Delete this moment?',
-              style: AppTextStyles.bodyMedium16.copyWith(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            backgroundColor: AppColors.white,
+
+            title: Text('Delete this moment?'),
             content: Text(
               'This will permanently remove the moment from history.',
-              style: AppTextStyles.bodyRegular14,
             ),
             actions: [
               TextButton(
@@ -101,13 +104,27 @@ class HistorySection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 4),
-          child: Text(
-            'History',
-            style: AppTextStyles.sectionHeading.copyWith(
-              fontSize: 15,
-              color: AppColors.textPrimary.withValues(alpha: 0.75),
-            ),
+          padding: const EdgeInsets.only(left: 4, right: 4),
+          child: Row(
+            children: [
+              Text(
+                'Moments',
+                style: AppTextStyles.sectionHeading.copyWith(
+                  fontSize: 15,
+                  color: AppColors.textPrimary.withValues(alpha: 0.75),
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: onAdd,
+                behavior: HitTestBehavior.opaque,
+                child: const SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CustomPaint(painter: _PlusBtnPainter()),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
@@ -117,26 +134,28 @@ class HistorySection extends StatelessWidget {
             color: AppColors.white,
             borderRadius: BorderRadius.circular(24),
           ),
-          child: moments.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: _EmptyState(),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (var i = 0; i < moments.length; i++) ...[
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: MomentCard(
-                          moment: _convert(moments[i]),
-                          onDelete: () => _confirmDelete(context, moments[i]),
+          child:
+              moments.isEmpty
+                  ? const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: _EmptyState(),
+                  )
+                  : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var i = 0; i < moments.length; i++) ...[
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: MomentCard(
+                            moment: _convert(moments[i]),
+                            onDelete: () => _confirmDelete(context, moments[i]),
+                          ),
                         ),
-                      ),
-                      if (i < moments.length - 1) const _DashedMomentDivider(),
+                        if (i < moments.length - 1)
+                          const _DashedMomentDivider(),
+                      ],
                     ],
-                  ],
-                ),
+                  ),
         ),
       ],
     );
@@ -158,7 +177,7 @@ class _EmptyState extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'Tap "Log moment" to record your first connection',
+          'Tap "+" to record your first connection',
           style: AppTextStyles.bodyRegular14.copyWith(
             color: AppColors.cardBorder,
           ),
@@ -167,6 +186,29 @@ class _EmptyState extends StatelessWidget {
       ],
     );
   }
+}
+
+class _PlusBtnPainter extends CustomPainter {
+  const _PlusBtnPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint =
+        Paint()
+          ..color = AppColors.textPrimary
+          ..strokeWidth = 1.5
+          ..strokeCap = StrokeCap.round;
+
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    const arm = 5.83;
+
+    canvas.drawLine(Offset(cx - arm, cy), Offset(cx + arm, cy), paint);
+    canvas.drawLine(Offset(cx, cy - arm), Offset(cx, cy + arm), paint);
+  }
+
+  @override
+  bool shouldRepaint(_PlusBtnPainter old) => false;
 }
 
 class _DashedMomentDivider extends StatelessWidget {
@@ -188,11 +230,12 @@ class _DashPainter extends CustomPainter {
     const dashWidth = 6.0;
     const dashGap = 7.0;
 
-    final paint = Paint()
-      // rgba(17,17,17,0.1) — subtle dark divider matching Figma
-      ..color = const Color(0x1A111111)
-      ..strokeWidth = 1.0
-      ..strokeCap = StrokeCap.round;
+    final paint =
+        Paint()
+          // rgba(17,17,17,0.1) — subtle dark divider matching Figma
+          ..color = const Color(0x1A111111)
+          ..strokeWidth = 1.0
+          ..strokeCap = StrokeCap.round;
 
     double x = 0;
     while (x < size.width) {

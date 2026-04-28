@@ -90,7 +90,7 @@ class NotificationService {
     required bool globalEnabled,
   }) async {
     // Cancel only previously scheduled birthday notifications (not test ones).
-    for (final id in _scheduledBirthdayIds) {
+    for (final id in _scheduledBirthdayIds.toList()) {
       await _plugin.cancel(id);
     }
     _scheduledBirthdayIds.clear();
@@ -116,7 +116,7 @@ class NotificationService {
   /// ЗМІНА: Тепер планує notifications раз на 2 тижні (дні 30, 44, 58...)
   /// замість одного за день до overdue
   Future<void> scheduleOrbitReminders(List<Friend> friends) async {
-    for (final id in _scheduledOrbitIds) {
+    for (final id in _scheduledOrbitIds.toList()) {
       await _plugin.cancel(id);
     }
     _scheduledOrbitIds.clear();

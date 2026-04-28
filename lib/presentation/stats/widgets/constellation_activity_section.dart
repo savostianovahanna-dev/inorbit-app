@@ -20,10 +20,40 @@ const _kStarSize = 6.0; // star drawing diameter
 const _kLabelH = 16.0; // height reserved for month labels above each row
 
 const _kStarColor = Color(0xFFC8B8FF);
-const _kGlowColor = Color(0x55C8B8FF);
+const _kGlowColor = Color(0x25C8B8FF);
 const _kLineColor = Color(0x8CC8B8FF);
 const _kEmptyColor = Color(0x14FFFFFF);
 const _kDarkBg = Color(0xFF0D1117);
+
+// ─── Background options ───────────────────────────────────────────────────────
+
+enum _ConstellationBg { darkBlue, dark222, photo1, photo2 }
+
+const _kBgLabel = {
+  _ConstellationBg.darkBlue: 'Dark blue',
+  _ConstellationBg.dark222: 'Black',
+  _ConstellationBg.photo1: 'Space 1',
+  _ConstellationBg.photo2: 'Space 2',
+};
+
+BoxDecoration _bgDecoration(_ConstellationBg bg, {double borderRadius = 16}) {
+  final radius = BorderRadius.circular(borderRadius);
+  switch (bg) {
+    case _ConstellationBg.darkBlue:
+      return BoxDecoration(color: _kDarkBg, borderRadius: radius);
+    case _ConstellationBg.dark222:
+      return BoxDecoration(color: const Color(0xFF222222), borderRadius: radius);
+    case _ConstellationBg.photo1:
+    case _ConstellationBg.photo2:
+      return BoxDecoration(
+        borderRadius: radius,
+        image: const DecorationImage(
+          image: AssetImage('assets/images/home.png'),
+          fit: BoxFit.cover,
+        ),
+      );
+  }
+}
 
 const _kMonthAbbr = [
   'Jan',
@@ -119,6 +149,38 @@ _GridData _build3MonthGrid(Map<DateTime, int> activityByDay) {
     activityByDay: activityByDay,
     todayDate: todayDate,
     labelMonthSets: [targetMonths],
+  );
+}
+
+/// Builds a grid with 2 rows — Q1 (Jan–Mar) and Q2 (Apr–Jun) — used for capture.
+_GridData _buildH1Grid(Map<DateTime, int> activityByDay) {
+  final today = DateTime.now();
+  final todayDate = DateTime(today.year, today.month, today.day);
+  final year = todayDate.year;
+
+  const qStarts = [1, 4];
+
+  final rowStartDates = <DateTime>[];
+  final labelMonthSets = <Set<int>>[];
+  int maxNumCols = 0;
+
+  for (final sm in qStarts) {
+    final em = sm + 2;
+    final startMonday = _mondayOf(DateTime(year, sm, 1));
+    final endMonday = _mondayOf(_lastDayOf(year, em));
+    final numCols = (endMonday.difference(startMonday).inDays ~/ 7) + 1;
+
+    rowStartDates.add(startMonday);
+    labelMonthSets.add({sm, sm + 1, sm + 2});
+    if (numCols > maxNumCols) maxNumCols = numCols;
+  }
+
+  return _buildRows(
+    rowStartDates: rowStartDates,
+    numCols: maxNumCols,
+    activityByDay: activityByDay,
+    todayDate: todayDate,
+    labelMonthSets: labelMonthSets,
   );
 }
 
@@ -239,8 +301,10 @@ class _ConstellationActivitySectionState
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnim;
-  bool _expanded    = false;
+  bool _expanded = true; // start in expanded (year) view
   bool _isCapturing = false;
+  _GridData? _captureGridData;
+  _ConstellationBg _captureBg = _ConstellationBg.darkBlue;
 
   final _captureKey = GlobalKey();
 
@@ -260,10 +324,12 @@ class _ConstellationActivitySectionState
     super.dispose();
   }
 
-  Future<Uint8List?> _capture() async {
-    // Switch to capture mode: empty cells become transparent
-    setState(() => _isCapturing = true);
-    // Let the frame rebuild before capturing
+  Future<Uint8List?> _capture(_ConstellationBg bg) async {
+    setState(() {
+      _captureGridData = _buildH1Grid(widget.activityByDay);
+      _captureBg = bg;
+      _isCapturing = true;
+    });
     await WidgetsBinding.instance.endOfFrame;
 
     final boundary =
@@ -272,25 +338,51 @@ class _ConstellationActivitySectionState
     Uint8List? bytes;
     if (boundary != null) {
       final image = await boundary.toImage(pixelRatio: 3.0);
-      final data  = await image.toByteData(format: ui.ImageByteFormat.png);
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
       bytes = data?.buffer.asUint8List();
     }
 
-    setState(() => _isCapturing = false);
+    setState(() {
+      _isCapturing = false;
+      _captureGridData = null;
+      _captureBg = _ConstellationBg.darkBlue;
+    });
     return bytes;
   }
 
+  Future<_ConstellationBg?> _showBgPicker() {
+    return showModalBottomSheet<_ConstellationBg>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder:
+          (_) => _BgPickerSheet(
+            activityByDay: widget.activityByDay,
+            momentsByDay: widget.momentsByDay,
+            friends: widget.friends,
+          ),
+    );
+  }
+
   Future<void> _save() async {
-    final bytes = await _capture();
+    final bg = await _showBgPicker();
+    if (bg == null) return;
+    final bytes = await _capture(bg);
     if (bytes == null) return;
     await Gal.putImageBytes(bytes);
   }
 
   Future<void> _share() async {
-    final bytes = await _capture();
+    final bg = await _showBgPicker();
+    if (bg == null) return;
+    final bytes = await _capture(bg);
     if (bytes == null) return;
     await Share.shareXFiles([
-      XFile.fromData(bytes, mimeType: 'image/png', name: 'inorbit_activity.png'),
+      XFile.fromData(
+        bytes,
+        mimeType: 'image/png',
+        name: 'inorbit_activity.png',
+      ),
     ]);
   }
 
@@ -325,17 +417,20 @@ class _ConstellationActivitySectionState
                   key: _captureKey,
                   child: Container(
                     width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: _kDarkBg,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    clipBehavior: Clip.antiAlias,
+                    decoration: _isCapturing
+                        ? _bgDecoration(_captureBg)
+                        : const BoxDecoration(
+                            color: _kDarkBg,
+                            borderRadius: BorderRadius.all(Radius.circular(16)),
+                          ),
                     padding: const EdgeInsets.all(12),
                     child: AnimatedSize(
                       duration: const Duration(milliseconds: 350),
                       curve: Curves.easeInOut,
                       child: _ConstellationGrid(
                         key: ValueKey(_expanded),
-                        gridData: gridData,
+                        gridData: _captureGridData ?? gridData,
                         pulseAnim: _pulseAnim,
                         captureMode: _isCapturing,
                         momentsByDay: widget.momentsByDay,
@@ -393,19 +488,19 @@ class _ConstellationHeader extends StatelessWidget {
           child: Text('Activity', style: AppTextStyles.bodyMedium16),
         ),
         const Spacer(),
-        GestureDetector(
-          onTap: onToggle,
-          child: AnimatedRotation(
-            turns: expanded ? 0.5 : 0.0,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            child: const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: Color(0x99C8B8FF),
-              size: 20,
-            ),
-          ),
-        ),
+        // GestureDetector(
+        //   onTap: onToggle,
+        //   child: AnimatedRotation(
+        //     turns: expanded ? 0.5 : 0.0,
+        //     duration: const Duration(milliseconds: 300),
+        //     curve: Curves.easeInOut,
+        //     child: const Icon(
+        //       Icons.keyboard_arrow_down_rounded,
+        //       color: Color(0x99C8B8FF),
+        //       size: 20,
+        //     ),
+        //   ),
+        // ),
       ],
     );
   }
@@ -425,6 +520,7 @@ class _ConstellationGrid extends StatelessWidget {
 
   final _GridData gridData;
   final Animation<double> pulseAnim;
+
   /// When true, empty cells are transparent — used during screenshot capture.
   final bool captureMode;
   final Map<DateTime, List<Moment>> momentsByDay;
@@ -455,21 +551,23 @@ class _ConstellationGrid extends StatelessWidget {
         for (final row in gridData.rows) {
           final rowTopY = row.rowIndex * (_kLabelH + colH + _kRowMargin);
 
-          // Month labels
-          for (final entry in row.monthLabels.entries) {
-            cells.add(
-              Positioned(
-                left: entry.key * stride,
-                top: rowTopY,
-                child: Text(
-                  entry.value,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 10,
-                    color: const Color(0xFF5A5A7A),
+          // Month labels (hidden during capture)
+          if (!captureMode) {
+            for (final entry in row.monthLabels.entries) {
+              cells.add(
+                Positioned(
+                  left: entry.key * stride,
+                  top: rowTopY,
+                  child: Text(
+                    entry.value,
+                    style: GoogleFonts.dmSans(
+                      fontSize: 10,
+                      color: const Color(0xFF5A5A7A),
+                    ),
                   ),
                 ),
-              ),
-            );
+              );
+            }
           }
 
           // Day cells
@@ -493,31 +591,33 @@ class _ConstellationGrid extends StatelessWidget {
                 Positioned(
                   left: col * stride,
                   top: rowTopY + _kLabelH + day * stride,
-                  child: isActive
-                      ? GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: captureMode
-                              ? null
-                              : () {
-                                  final dayMoments =
-                                      momentsByDay[cellDateKey] ?? [];
-                                  debugPrint(
-                                    '[Activity tap] date=$cellDateKey  moments=${dayMoments.length}',
-                                  );
-                                  _showDayPopup(
-                                    context,
-                                    cellDateKey,
-                                    dayMoments,
-                                    friends,
-                                  );
-                                },
-                          child: _StarCell(
-                            pulseAnim: pulseAnim,
-                            staggerOffset: (cellInfo.starIndex * 0.13) % 1.0,
-                            cellSize: cellSize,
-                          ),
-                        )
-                      : captureMode
+                  child:
+                      isActive
+                          ? GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap:
+                                captureMode
+                                    ? null
+                                    : () {
+                                      final dayMoments =
+                                          momentsByDay[cellDateKey] ?? [];
+                                      debugPrint(
+                                        '[Activity tap] date=$cellDateKey  moments=${dayMoments.length}',
+                                      );
+                                      _showDayPopup(
+                                        context,
+                                        cellDateKey,
+                                        dayMoments,
+                                        friends,
+                                      );
+                                    },
+                            child: _StarCell(
+                              pulseAnim: pulseAnim,
+                              staggerOffset: (cellInfo.starIndex * 0.13) % 1.0,
+                              cellSize: cellSize,
+                            ),
+                          )
+                          : captureMode
                           // Transparent placeholder — keeps layout intact
                           ? SizedBox(width: cellSize, height: cellSize)
                           : _EmptyCell(cellSize: cellSize),
@@ -531,6 +631,7 @@ class _ConstellationGrid extends StatelessWidget {
           width: availW,
           height: totalH,
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
               ...cells,
               // IgnorePointer so the dotted-lines overlay doesn't
@@ -594,6 +695,7 @@ class _StarCell extends StatelessWidget {
       width: cellSize,
       height: cellSize,
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
           // Same background square as empty cells
           Container(
@@ -649,8 +751,8 @@ class _StarPainter extends CustomPainter {
     final glowPaint =
         Paint()
           ..color = _kGlowColor.withValues(alpha: glowOpacity)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.0);
-    canvas.drawCircle(Offset(cx, cy), outerR * 1.8, glowPaint);
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10.0);
+    canvas.drawCircle(Offset(cx, cy), outerR * 3.5, glowPaint);
 
     // 4-pointed star
     const numPoints = 4;
@@ -752,6 +854,225 @@ class _DottedLinesPainter extends CustomPainter {
       old.cellSize != cellSize;
 }
 
+// ─── Background picker sheet ──────────────────────────────────────────────────
+
+class _BgPickerSheet extends StatefulWidget {
+  const _BgPickerSheet({
+    required this.activityByDay,
+    required this.momentsByDay,
+    required this.friends,
+  });
+
+  final Map<DateTime, int> activityByDay;
+  final Map<DateTime, List<Moment>> momentsByDay;
+  final List<Friend> friends;
+
+  @override
+  State<_BgPickerSheet> createState() => _BgPickerSheetState();
+}
+
+class _BgPickerSheetState extends State<_BgPickerSheet>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+  _ConstellationBg _selected = _ConstellationBg.darkBlue;
+  late final _GridData _gridData;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+    _anim = _ctrl;
+    _gridData = _buildH1Grid(widget.activityByDay);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF12121E),
+          borderRadius: BorderRadius.all(Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0x33FFFFFF),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Choose background',
+              style: GoogleFonts.dmSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Option thumbnails
+            SizedBox(
+              height: 96,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: [
+                  for (final bg in _ConstellationBg.values)
+                    _BgOptionTile(
+                      bg: bg,
+                      selected: _selected == bg,
+                      onTap: () => setState(() => _selected = bg),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Live preview
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: double.infinity,
+                  decoration: _bgDecoration(_selected),
+                  padding: const EdgeInsets.all(12),
+                  child: _ConstellationGrid(
+                    gridData: _gridData,
+                    pulseAnim: _anim,
+                    captureMode: true,
+                    momentsByDay: widget.momentsByDay,
+                    friends: widget.friends,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Confirm button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context, _selected),
+                child: Container(
+                  width: double.infinity,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFC8B8FF),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Save with this background',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF0D0D1A),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BgOptionTile extends StatelessWidget {
+  const _BgOptionTile({
+    required this.bg,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _ConstellationBg bg;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPhoto =
+        bg == _ConstellationBg.photo1 || bg == _ConstellationBg.photo2;
+
+    Widget content = Container(
+      width: 64,
+      height: 80,
+      margin: const EdgeInsets.only(right: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: selected
+              ? const Color(0xFFC8B8FF)
+              : const Color(0x33FFFFFF),
+          width: selected ? 2 : 1,
+        ),
+        color: !isPhoto
+            ? (bg == _ConstellationBg.darkBlue
+                ? _kDarkBg
+                : const Color(0xFF222222))
+            : null,
+        image: isPhoto
+            ? const DecorationImage(
+                image: AssetImage('assets/images/home.png'),
+                fit: BoxFit.cover,
+              )
+            : null,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (selected)
+            const Icon(Icons.check_circle_rounded,
+                color: Color(0xFFC8B8FF), size: 16),
+          const SizedBox(height: 4),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0x99000000),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(11),
+                bottomRight: Radius.circular(11),
+              ),
+            ),
+            child: Text(
+              _kBgLabel[bg]!,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                fontSize: 9,
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return GestureDetector(onTap: onTap, child: content);
+  }
+}
+
 // ─── Day moments popup ────────────────────────────────────────────────────────
 
 void _showDayPopup(
@@ -762,11 +1083,8 @@ void _showDayPopup(
 ) {
   showDialog<void>(
     context: context,
-    builder: (_) => _DayMomentsPopup(
-      date: date,
-      moments: moments,
-      friends: friends,
-    ),
+    builder:
+        (_) => _DayMomentsPopup(date: date, moments: moments, friends: friends),
   );
 }
 
@@ -802,8 +1120,18 @@ class _DayMomentsPopup extends StatelessWidget {
   };
 
   static const _monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
 
   String get _formattedDate =>

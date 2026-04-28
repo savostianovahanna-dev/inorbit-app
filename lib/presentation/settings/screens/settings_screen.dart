@@ -471,6 +471,7 @@ class _BottomSection extends StatelessWidget {
           context: context,
           builder:
               (ctx) => AlertDialog(
+                backgroundColor: AppColors.white,
                 title: const Text('Delete account?'),
                 content: const Text(
                   'This will permanently delete your account and all your data. This cannot be undone.',

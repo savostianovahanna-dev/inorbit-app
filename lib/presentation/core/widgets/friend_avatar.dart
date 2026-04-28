@@ -51,7 +51,7 @@ class FriendAvatar extends StatelessWidget {
     }
 
     if (friend.planetIndex != null) {
-      final index = friend.planetIndex! - 1;
+      final index = friend.planetIndex!;
       if (index >= 0 && index < _planets.length) {
         return Image.asset(
           _planets[index],

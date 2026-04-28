@@ -76,8 +76,8 @@ class _StatsBody extends StatelessWidget {
             momentsByDay: data.momentsByDay,
             friends: data.friendsOrderedByOverdue,
           ),
-          const SizedBox(height: 20),
-          _OrbitHealthSection(friends: data.friendsOrderedByOverdue),
+          // const SizedBox(height: 20),
+          // _OrbitHealthSection(friends: data.friendsOrderedByOverdue),
         ],
       ),
     );
@@ -187,8 +187,7 @@ class _HeroCard extends StatelessWidget {
                       Container(
                         width: 1,
                         margin: const EdgeInsets.symmetric(horizontal: 16),
-                        color:
-                            const Color(0xFFE2E8F0).withValues(alpha: 0.5),
+                        color: const Color(0xFFE2E8F0).withValues(alpha: 0.5),
                       ),
 
                       // Needs attention
@@ -197,9 +196,10 @@ class _HeroCard extends StatelessWidget {
                           label: 'Needs attention',
                           friend: data.needsAttentionFriend,
                           value: _attentionValue(data.needsAttentionFriend),
-                          valueColor: data.needsAttentionFriend != null
-                              ? AppColors.orange
-                              : Colors.white,
+                          valueColor:
+                              data.needsAttentionFriend != null
+                                  ? AppColors.orange
+                                  : Colors.white,
                         ),
                       ),
                     ],
@@ -276,10 +276,11 @@ class _HeroOrbits extends StatelessWidget {
 class _HeroOrbitsPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.04)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
+    final paint =
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.04)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1;
 
     final center = Offset(size.width * 0.85, size.height * 0.2);
     for (final r in [50.0, 100.0, 160.0, 230.0]) {
@@ -314,37 +315,39 @@ class _OrbitHealthSection extends StatelessWidget {
             color: AppColors.white,
             borderRadius: BorderRadius.circular(24),
           ),
-          child: friends.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'Add friends to see orbit health',
-                    style: AppTextStyles.bodyRegular14.copyWith(
-                      color: AppColors.cardBorder,
+          child:
+              friends.isEmpty
+                  ? Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Add friends to see orbit health',
+                      style: AppTextStyles.bodyRegular14.copyWith(
+                        color: AppColors.cardBorder,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
+                  )
+                  : Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                    child: Column(
+                      children: List.generate(friends.length, (i) {
+                        final isLast = i == friends.length - 1;
+                        return Column(
+                          children: [
+                            _PersonRow(friend: friends[i]),
+                            if (!isLast)
+                              Container(
+                                height: 0.5,
+                                margin: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
+                                color: AppColors.divider,
+                              ),
+                          ],
+                        );
+                      }),
+                    ),
                   ),
-                )
-              : Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                  child: Column(
-                    children: List.generate(friends.length, (i) {
-                      final isLast = i == friends.length - 1;
-                      return Column(
-                        children: [
-                          _PersonRow(friend: friends[i]),
-                          if (!isLast)
-                            Container(
-                              height: 0.5,
-                              margin:
-                                  const EdgeInsets.symmetric(vertical: 10),
-                              color: AppColors.divider,
-                            ),
-                        ],
-                      );
-                    }),
-                  ),
-                ),
         ),
       ],
     );
@@ -394,9 +397,7 @@ class _PersonRow extends StatelessWidget {
               ),
               Text(
                 _daysText,
-                style: AppTextStyles.settingsRowSubtitle.copyWith(
-                  fontSize: 12,
-                ),
+                style: AppTextStyles.settingsRowSubtitle.copyWith(fontSize: 12),
               ),
             ],
           ),
@@ -460,9 +461,10 @@ class _FriendAvatar extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: showBorder
-            ? Border.all(color: AppColors.divider, width: 1.5)
-            : null,
+        border:
+            showBorder
+                ? Border.all(color: AppColors.divider, width: 1.5)
+                : null,
       ),
       child: Center(
         child: Text(
