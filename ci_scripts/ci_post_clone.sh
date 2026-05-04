@@ -1,4 +1,5 @@
 #!/bin/sh
-brew install cocoapods
-pod install --project-directory=ios
-
+flutter pub get
+flutter build ios --config-only
+cd ios
+pod install
