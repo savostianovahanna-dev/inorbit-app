@@ -27,32 +27,40 @@ const _kDarkBg = Color(0xFF0D1117);
 
 // ─── Background options ───────────────────────────────────────────────────────
 
-enum _ConstellationBg { darkBlue, dark222, photo1, photo2 }
+// Photos come first; dark blue is the last option.
+enum _ConstellationBg { photo1, photo2, photo3, photo4, darkBlue }
 
 const _kBgLabel = {
+  _ConstellationBg.photo1: 'Night 1',
+  _ConstellationBg.photo2: 'Night 2',
+  _ConstellationBg.photo3: 'Night 3',
+  _ConstellationBg.photo4: 'Night 4',
   _ConstellationBg.darkBlue: 'Dark blue',
-  _ConstellationBg.dark222: 'Black',
-  _ConstellationBg.photo1: 'Space 1',
-  _ConstellationBg.photo2: 'Space 2',
+};
+
+const _kBgAsset = {
+  _ConstellationBg.photo1:
+      'assets/images/constellation_background/chan-hoi-uj-w-v7OFT4-unsplash 1.png',
+  _ConstellationBg.photo2:
+      'assets/images/constellation_background/ivana-cajina-asuyh-_ZX54-unsplash 1.png',
+  _ConstellationBg.photo3:
+      'assets/images/constellation_background/klemen-vrankar-lcT_p8kLCsc-unsplash 1.png',
+  _ConstellationBg.photo4:
+      'assets/images/constellation_background/paul-lichtblau-qVotvbsuM_c-unsplash 1.png',
 };
 
 BoxDecoration _bgDecoration(_ConstellationBg bg, {double borderRadius = 16}) {
   final radius = BorderRadius.circular(borderRadius);
-  switch (bg) {
-    case _ConstellationBg.darkBlue:
-      return BoxDecoration(color: _kDarkBg, borderRadius: radius);
-    case _ConstellationBg.dark222:
-      return BoxDecoration(color: const Color(0xFF222222), borderRadius: radius);
-    case _ConstellationBg.photo1:
-    case _ConstellationBg.photo2:
-      return BoxDecoration(
-        borderRadius: radius,
-        image: const DecorationImage(
-          image: AssetImage('assets/images/home.png'),
-          fit: BoxFit.cover,
-        ),
-      );
+  if (bg == _ConstellationBg.darkBlue) {
+    return BoxDecoration(color: _kDarkBg, borderRadius: radius);
   }
+  return BoxDecoration(
+    borderRadius: radius,
+    image: DecorationImage(
+      image: AssetImage(_kBgAsset[bg]!),
+      fit: BoxFit.cover,
+    ),
+  );
 }
 
 const _kMonthAbbr = [
@@ -304,7 +312,7 @@ class _ConstellationActivitySectionState
   bool _expanded = true; // start in expanded (year) view
   bool _isCapturing = false;
   _GridData? _captureGridData;
-  _ConstellationBg _captureBg = _ConstellationBg.darkBlue;
+  _ConstellationBg _captureBg = _ConstellationBg.photo1;
 
   final _captureKey = GlobalKey();
 
@@ -345,7 +353,7 @@ class _ConstellationActivitySectionState
     setState(() {
       _isCapturing = false;
       _captureGridData = null;
-      _captureBg = _ConstellationBg.darkBlue;
+      _captureBg = _ConstellationBg.photo1;
     });
     return bytes;
   }
@@ -418,40 +426,54 @@ class _ConstellationActivitySectionState
                   child: Container(
                     width: double.infinity,
                     clipBehavior: Clip.antiAlias,
-                    decoration: _isCapturing
-                        ? _bgDecoration(_captureBg)
-                        : const BoxDecoration(
-                            color: _kDarkBg,
-                            borderRadius: BorderRadius.all(Radius.circular(16)),
-                          ),
+                    decoration:
+                        _isCapturing
+                            ? _bgDecoration(_captureBg, borderRadius: 0)
+                            : const BoxDecoration(
+                              color: _kDarkBg,
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(16),
+                              ),
+                            ),
                     padding: const EdgeInsets.all(12),
-                    child: AnimatedSize(
-                      duration: const Duration(milliseconds: 350),
-                      curve: Curves.easeInOut,
-                      child: _ConstellationGrid(
-                        key: ValueKey(_expanded),
-                        gridData: _captureGridData ?? gridData,
-                        pulseAnim: _pulseAnim,
-                        captureMode: _isCapturing,
-                        momentsByDay: widget.momentsByDay,
-                        friends: widget.friends,
-                      ),
-                    ),
+                    // During capture we bypass AnimatedSize so the image height
+                    // matches the picker preview exactly (no in-flight animation).
+                    child:
+                        _isCapturing
+                            ? _ConstellationGrid(
+                              gridData: _captureGridData!,
+                              pulseAnim: _pulseAnim,
+                              captureMode: true,
+                              momentsByDay: widget.momentsByDay,
+                              friends: widget.friends,
+                            )
+                            : AnimatedSize(
+                              duration: const Duration(milliseconds: 350),
+                              curve: Curves.easeInOut,
+                              child: _ConstellationGrid(
+                                key: ValueKey(_expanded),
+                                gridData: gridData,
+                                pulseAnim: _pulseAnim,
+                                captureMode: false,
+                                momentsByDay: widget.momentsByDay,
+                                friends: widget.friends,
+                              ),
+                            ),
                   ),
                 ),
                 const SizedBox(height: 14),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    GestureDetector(
-                      onTap: _share,
-                      child: SvgPicture.asset(
-                        'assets/icons/share.svg',
-                        width: 20,
-                        height: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 18),
+                    // GestureDetector(
+                    //   onTap: _share,
+                    //   child: SvgPicture.asset(
+                    //     'assets/icons/share.svg',
+                    //     width: 20,
+                    //     height: 20,
+                    //   ),
+                    // ),
+                    // const SizedBox(width: 18),
                     GestureDetector(
                       onTap: _save,
                       child: SvgPicture.asset(
@@ -615,6 +637,7 @@ class _ConstellationGrid extends StatelessWidget {
                               pulseAnim: pulseAnim,
                               staggerOffset: (cellInfo.starIndex * 0.13) % 1.0,
                               cellSize: cellSize,
+                              captureMode: captureMode,
                             ),
                           )
                           : captureMode
@@ -683,11 +706,16 @@ class _StarCell extends StatelessWidget {
     required this.pulseAnim,
     required this.staggerOffset,
     required this.cellSize,
+    this.captureMode = false,
   });
 
   final Animation<double> pulseAnim;
   final double staggerOffset;
   final double cellSize;
+
+  /// When true the cell background square is hidden — used for the picker
+  /// preview and the exported image so only the star + glow are visible.
+  final bool captureMode;
 
   @override
   Widget build(BuildContext context) {
@@ -697,15 +725,16 @@ class _StarCell extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Same background square as empty cells
-          Container(
-            width: cellSize,
-            height: cellSize,
-            decoration: BoxDecoration(
-              color: _kEmptyColor,
-              borderRadius: BorderRadius.circular(3),
+          // Background square — hidden when there is a custom bg (capture/preview)
+          if (!captureMode)
+            Container(
+              width: cellSize,
+              height: cellSize,
+              decoration: BoxDecoration(
+                color: _kEmptyColor,
+                borderRadius: BorderRadius.circular(3),
+              ),
             ),
-          ),
           // Animated star on top
           Center(
             child: AnimatedBuilder(
@@ -875,7 +904,7 @@ class _BgPickerSheetState extends State<_BgPickerSheet>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _anim;
-  _ConstellationBg _selected = _ConstellationBg.darkBlue;
+  _ConstellationBg _selected = _ConstellationBg.photo1;
   late final _GridData _gridData;
 
   @override
@@ -975,7 +1004,7 @@ class _BgPickerSheetState extends State<_BgPickerSheet>
                   width: double.infinity,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFC8B8FF),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   alignment: Alignment.center,
@@ -1011,8 +1040,7 @@ class _BgOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPhoto =
-        bg == _ConstellationBg.photo1 || bg == _ConstellationBg.photo2;
+    final isPhoto = bg != _ConstellationBg.darkBlue;
 
     Widget content = Container(
       width: 64,
@@ -1021,29 +1049,27 @@ class _BgOptionTile extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: selected
-              ? const Color(0xFFC8B8FF)
-              : const Color(0x33FFFFFF),
+          color: selected ? const Color(0xFFFFFFFF) : const Color(0x33FFFFFF),
           width: selected ? 2 : 1,
         ),
-        color: !isPhoto
-            ? (bg == _ConstellationBg.darkBlue
-                ? _kDarkBg
-                : const Color(0xFF222222))
-            : null,
-        image: isPhoto
-            ? const DecorationImage(
-                image: AssetImage('assets/images/home.png'),
-                fit: BoxFit.cover,
-              )
-            : null,
+        color: isPhoto ? null : _kDarkBg,
+        image:
+            isPhoto
+                ? DecorationImage(
+                  image: AssetImage(_kBgAsset[bg]!),
+                  fit: BoxFit.cover,
+                )
+                : null,
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           if (selected)
-            const Icon(Icons.check_circle_rounded,
-                color: Color(0xFFC8B8FF), size: 16),
+            const Icon(
+              Icons.check_circle_rounded,
+              color: Color(0xFFC8B8FF),
+              size: 16,
+            ),
           const SizedBox(height: 4),
           Container(
             width: double.infinity,

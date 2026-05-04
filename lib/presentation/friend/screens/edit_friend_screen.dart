@@ -34,8 +34,18 @@ class _EditFriendScreenState extends State<EditFriendScreen> {
     (name: 'Casuals', freq: 'Every 3 months', desc: 'Keeping in touch'),
   ];
   static const _months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
 
   // ── Controllers ─────────────────────────────────────────────────────────────
@@ -82,9 +92,10 @@ class _EditFriendScreenState extends State<EditFriendScreen> {
     setState(() => _saving = true);
 
     final updated = widget.friend.copyWith(
-      name: _nameCtrl.text.trim().isEmpty
-          ? widget.friend.name
-          : _nameCtrl.text.trim(),
+      name:
+          _nameCtrl.text.trim().isEmpty
+              ? widget.friend.name
+              : _nameCtrl.text.trim(),
       planetIndex: _planetIndex,
       avatarPath: _avatarPath,
       birthday: _birthday,
@@ -106,67 +117,71 @@ class _EditFriendScreenState extends State<EditFriendScreen> {
 
     showCupertinoModalPopup<void>(
       context: context,
-      builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              decoration: const BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: AppColors.divider, width: 0.5),
+      builder:
+          (ctx) => Container(
+            decoration: const BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: AppColors.divider, width: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pop(ctx),
+                        child: Text(
+                          'Cancel',
+                          style: AppTextStyles.bodyRegular14.copyWith(
+                            color: AppColors.cardBorder,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      Text('Last connected', style: AppTextStyles.headerTitle),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() => _lastConnectedAt = temp);
+                          Navigator.pop(ctx);
+                        },
+                        child: Text(
+                          'Done',
+                          style: AppTextStyles.headerTitle.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(ctx),
-                    child: Text(
-                      'Cancel',
-                      style: AppTextStyles.bodyRegular14.copyWith(
-                        color: AppColors.cardBorder,
-                        fontSize: 16,
-                      ),
-                    ),
+                SizedBox(
+                  height: 216,
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.date,
+                    initialDateTime: temp,
+                    maximumDate: now,
+                    minimumYear: 1900,
+                    onDateTimeChanged: (d) => temp = d,
                   ),
-                  Text('Last connected', style: AppTextStyles.headerTitle),
-                  GestureDetector(
-                    onTap: () {
-                      setState(() => _lastConnectedAt = temp);
-                      Navigator.pop(ctx);
-                    },
-                    child: Text(
-                      'Done',
-                      style: AppTextStyles.headerTitle.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                SizedBox(height: MediaQuery.of(ctx).padding.bottom),
+              ],
             ),
-            SizedBox(
-              height: 216,
-              child: CupertinoDatePicker(
-                mode: CupertinoDatePickerMode.date,
-                initialDateTime: temp,
-                maximumDate: now,
-                minimumYear: 1900,
-                onDateTimeChanged: (d) => temp = d,
-              ),
-            ),
-            SizedBox(height: MediaQuery.of(ctx).padding.bottom),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -240,7 +255,9 @@ class _EditFriendScreenState extends State<EditFriendScreen> {
                       ),
                       Positioned.fill(
                         child: ColoredBox(
-                          color: const Color(0xFFDEA754).withValues(alpha: 0.10),
+                          color: const Color(
+                            0xFFDEA754,
+                          ).withValues(alpha: 0.10),
                         ),
                       ),
                     ],
@@ -258,9 +275,10 @@ class _EditFriendScreenState extends State<EditFriendScreen> {
                                 Text(
                                   o.name,
                                   style: AppTextStyles.headerTitle.copyWith(
-                                    color: sel
-                                        ? Colors.white
-                                        : AppColors.textPrimary,
+                                    color:
+                                        sel
+                                            ? Colors.white
+                                            : AppColors.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -268,9 +286,12 @@ class _EditFriendScreenState extends State<EditFriendScreen> {
                                   o.freq,
                                   style: AppTextStyles.bodyRegular14.copyWith(
                                     fontSize: 14,
-                                    color: sel
-                                        ? Colors.white.withValues(alpha: 0.75)
-                                        : AppColors.textSecondary,
+                                    color:
+                                        sel
+                                            ? Colors.white.withValues(
+                                              alpha: 0.75,
+                                            )
+                                            : AppColors.textSecondary,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -278,10 +299,13 @@ class _EditFriendScreenState extends State<EditFriendScreen> {
                                   o.desc,
                                   style: AppTextStyles.labelRegular14.copyWith(
                                     fontSize: 12,
-                                    color: sel
-                                        ? Colors.white.withValues(alpha: 0.55)
-                                        : AppColors.textSecondary
-                                            .withValues(alpha: 0.7),
+                                    color:
+                                        sel
+                                            ? Colors.white.withValues(
+                                              alpha: 0.55,
+                                            )
+                                            : AppColors.textSecondary
+                                                .withValues(alpha: 0.7),
                                   ),
                                 ),
                               ],
@@ -303,9 +327,10 @@ class _EditFriendScreenState extends State<EditFriendScreen> {
 
   // ── Last connected row ───────────────────────────────────────────────────────
   Widget _buildLastConnected() {
-    final label = _lastConnectedAt != null
-        ? '${_months[_lastConnectedAt!.month - 1]} ${_lastConnectedAt!.day}, ${_lastConnectedAt!.year}'
-        : 'Pick date';
+    final label =
+        _lastConnectedAt != null
+            ? '${_months[_lastConnectedAt!.month - 1]} ${_lastConnectedAt!.day}, ${_lastConnectedAt!.year}'
+            : 'Pick date';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,9 +355,10 @@ class _EditFriendScreenState extends State<EditFriendScreen> {
                   label,
                   style: AppTextStyles.bodyRegular14.copyWith(
                     fontSize: 14,
-                    color: _lastConnectedAt != null
-                        ? AppColors.textPrimary
-                        : AppColors.textPrimary.withValues(alpha: 0.35),
+                    color:
+                        _lastConnectedAt != null
+                            ? AppColors.textPrimary
+                            : AppColors.textPrimary.withValues(alpha: 0.35),
                   ),
                 ),
                 Image.asset(
@@ -375,10 +401,13 @@ class _EditFriendScreenState extends State<EditFriendScreen> {
                     AvatarPicker(
                       initialPlanetIndex: _planetIndex,
                       initialAvatarPath: _avatarPath,
-                      onPlanetIndexChanged: (i) =>
-                          setState(() => _planetIndex = i),
-                      onAvatarPathChanged: (p) =>
-                          setState(() => _avatarPath = p),
+                      onPlanetIndexChanged:
+                          (i) => setState(
+                            () =>
+                                _planetIndex = (i != null && i > 0) ? i - 1 : i,
+                          ),
+                      onAvatarPathChanged:
+                          (p) => setState(() => _avatarPath = p),
                     ),
                     const SizedBox(height: 24),
 
@@ -467,10 +496,11 @@ class _RadioDotPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
 
-    final strokePaint = Paint()
-      ..color = const Color(0xFF96A8C2)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.6;
+    final strokePaint =
+        Paint()
+          ..color = const Color(0xFF96A8C2)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.6;
     canvas.drawCircle(center, radius - 0.3, strokePaint);
 
     if (selected) {
@@ -495,20 +525,22 @@ class _RadioDotPainter extends CustomPainter {
 class _ChevronPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.textPrimary
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..style = PaintingStyle.stroke;
+    final paint =
+        Paint()
+          ..color = AppColors.textPrimary
+          ..strokeWidth = 1.5
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..style = PaintingStyle.stroke;
 
     final cx = size.width / 2;
     final cy = size.height / 2;
 
-    final path = Path()
-      ..moveTo(cx + 3, cy - 6)
-      ..lineTo(cx - 3, cy)
-      ..lineTo(cx + 3, cy + 6);
+    final path =
+        Path()
+          ..moveTo(cx + 3, cy - 6)
+          ..lineTo(cx - 3, cy)
+          ..lineTo(cx + 3, cy + 6);
 
     canvas.drawPath(path, paint);
   }

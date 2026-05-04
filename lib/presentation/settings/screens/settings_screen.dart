@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -109,8 +110,16 @@ class SettingsContent extends StatelessWidget {
                   // ── Data & Privacy ───────────────────────────────────────────
                   const _SectionLabel('Data & Privacy'),
                   const SizedBox(height: 12),
-                  const _SettingsCard(
-                    children: [_ValueRow(title: 'Privacy policy')],
+                  _SettingsCard(
+                    children: [
+                      _ValueRow(
+                        title: 'Privacy policy',
+                        onTap: () => launchUrl(
+                          Uri.parse('https://savostianovahanna-dev.github.io/inorbit-privacy/'),
+                          mode: LaunchMode.inAppBrowserView,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 32),
 
@@ -343,46 +352,50 @@ class _ToggleRow extends StatelessWidget {
 // ─── Row with a value label + chevron ────────────────────────────────────────
 
 class _ValueRow extends StatelessWidget {
-  const _ValueRow({required this.title, this.subtitle, this.value});
+  const _ValueRow({required this.title, this.subtitle, this.value, this.onTap});
 
   final String title;
   final String? subtitle;
   final String? value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: AppTextStyles.settingsRowTitle),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(subtitle!, style: AppTextStyles.settingsRowSubtitle),
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: AppTextStyles.settingsRowTitle),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(subtitle!, style: AppTextStyles.settingsRowSubtitle),
+                  ],
                 ],
-              ],
-            ),
-          ),
-          if (value != null) ...[
-            Text(
-              value!,
-              style: AppTextStyles.labelRegular14.copyWith(
-                fontSize: 14,
-                color: AppColors.cardBorder,
               ),
             ),
-            const SizedBox(width: 4),
+            if (value != null) ...[
+              Text(
+                value!,
+                style: AppTextStyles.labelRegular14.copyWith(
+                  fontSize: 14,
+                  color: AppColors.cardBorder,
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
+            CustomPaint(
+              size: const Size(16, 16),
+              painter: _ChevronRightPainter(),
+            ),
           ],
-          CustomPaint(
-            size: const Size(16, 16),
-            painter: _ChevronRightPainter(),
-          ),
-        ],
+        ),
       ),
     );
   }

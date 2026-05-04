@@ -28,7 +28,7 @@ class HomeBottomNavBar extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-          height: 76 + bottomPad,
+          height: 54 + bottomPad,
           padding: EdgeInsets.only(bottom: bottomPad),
           decoration: const BoxDecoration(
             // Semi-transparent to let blur show through
@@ -38,26 +38,36 @@ class HomeBottomNavBar extends StatelessWidget {
             ),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _NavItem(
-                iconPath: SharedIcons.navBarOrbit,
-                label: 'Orbit',
-                isActive: activeTab == NavTab.orbit,
-                onTap: () => onTabChanged(NavTab.orbit),
+              Expanded(
+                child: Center(
+                  child: _NavItem(
+                    iconPath: SharedIcons.navBarOrbit,
+                    label: 'Orbit',
+                    isActive: activeTab == NavTab.orbit,
+                    onTap: () => onTabChanged(NavTab.orbit),
+                  ),
+                ),
               ),
-              _NavItem(
-                iconPath: SharedIcons.navBarStats,
-                label: 'Stats',
-                isActive: activeTab == NavTab.stats,
-                onTap: () => onTabChanged(NavTab.stats),
+              Expanded(
+                child: Center(
+                  child: _NavItem(
+                    iconPath: SharedIcons.navBarStats,
+                    label: 'Stats',
+                    isActive: activeTab == NavTab.stats,
+                    onTap: () => onTabChanged(NavTab.stats),
+                  ),
+                ),
               ),
-              _NavItem(
-                iconPath: SharedIcons.navBarSettings,
-                label: 'Settings',
-                isActive: activeTab == NavTab.settings,
-                onTap: () => onTabChanged(NavTab.settings),
+              Expanded(
+                child: Center(
+                  child: _NavItem(
+                    iconPath: SharedIcons.navBarSettings,
+                    label: 'Settings',
+                    isActive: activeTab == NavTab.settings,
+                    onTap: () => onTabChanged(NavTab.settings),
+                  ),
+                ),
               ),
             ],
           ),
@@ -88,22 +98,24 @@ class _NavItem extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
-        padding: isActive
-            ? const EdgeInsets.symmetric(horizontal: 20, vertical: 10)
-            : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: isActive
-            ? BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              )
-            : null,
+        padding:
+            isActive
+                ? const EdgeInsets.symmetric(horizontal: 20, vertical: 10)
+                : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration:
+            isActive
+                ? BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                )
+                : null,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
